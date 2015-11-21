@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import operator
+import itertools
+import argparse
+
+import fast5_reader
+
+description = """
+Check that fast5 file contains raw events.
+"""
+parser = argparse.ArgumentParser(description=description, epilog='')
+parser.add_argument('input', action='store', help='Fast5 file')
+args = parser.parse_args()
+
+fn = args.input
+
+f = fast5_reader.File(fn)
+sys.exit(1 - f.have_raw_events())

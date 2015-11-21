@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import operator
+import itertools
+import argparse
+
+import fast5_reader
+
+description = """
+Extract 2D Fastq from Fast5 file.
+"""
+parser = argparse.ArgumentParser(description=description, epilog='')
+parser.add_argument('--strand', action='store', type=int, default=0, help='Strand (2 for 2D)')
+parser.add_argument('input', action='store', help='Fast5 file')
+args = parser.parse_args()
+
+fn = args.input
+strand = args.strand
+
+f = fast5_reader.File(fn)
+if not f.have_fastq(strand):
+    print('file [' + fn + '] has no fastq for strand [' + str(strand) + ']', file=sys.stderr)
+    sys.exit(0)
+fq = f.get_fastq(strand)
+f.close()
+print(fq.strip())
