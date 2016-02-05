@@ -1,0 +1,19 @@
+#!/bin/bash
+
+printab "read_name" \
+    "m0_read_len" "m1_read_len" "m2_read_len" "n0_read_len" "n1_read_len" \
+    "m0_aln_len" "m1_aln_len" "m2_aln_len" "n0_aln_len" "n1_aln_len" \
+    "m0_errors" "m1_errors" "m2_errors" "n0_errors" "n1_errors"
+zc "$@" |
+tail -n+2 |
+bedtools groupby -g 1,4 -c 2,3,5,5,3,6,12 -o count,max,min,max,collapse,collapse,collapse |
+tawk '
+$3==5 && $6<$5+$4 {
+    printf("%s", $1)
+    for (i = 7; i <= NF; ++i) {
+        split($i,a,",");
+        printf("\t%s\t%s\t%s\t%s\t%s", a[1], a[2], a[3], a[4], a[5]);
+    }
+    printf("\n")
+}
+'

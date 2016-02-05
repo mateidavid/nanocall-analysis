@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import operator
+import itertools
+import argparse
+
+import fast5_reader
+
+def process_file(fn):
+    try:
+        f5 = fast5_reader.File(fn)
+    except OSError:
+        print(fn + ': could not open file', file=sys.stderr)
+        return
+
+    a = f5.get_ed_read_attrs()
+    read_name = a['read_id'].decode()
+
+    l = [read_name]
+    for st in range(2):
+        if f5.have_model_path(st):
+            mp = f5.get_model_path(st)
+            mp = mp.split('/')[-1]
+            if mp.startswith('template'):
+                mp = 't.006.ont.model'
+            elif mp.startswith('complement'):
+                if 'pop1' in mp:
+                    mp = 'c.p1.006.ont.model'
+                elif 'pop2' in mp:
+                    mp = 'c.p2.006.ont.model'
+            l += [mp]
+        else:
+            l += ['']
+        if f5.have_model(st):
+            _, p = f5.get_model(st)
+            l += [p['scale'], p['shift'], p['drift'], p['var'], p['scale_sd'], p['var_sd']]
+        else:
+            l += [1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+
+    print('\t'.join((str(v) for v in l)))
+    f5.close()
+
+if __name__ == "__main__":
+    description = """
+    Extract Metrichor model parameters for file(s).
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--fofn', help='File of Fast5 files')
+    parser.add_argument('input', nargs='?', help='Fast5 file')
+    args = parser.parse_args()
+
+    l = ['read_name',
+         'm0_model_name', 'm0_scale', 'm0_shift', 'm0_drift', 'm0_var', 'm0_scale_sd', 'm0_var_sd',
+         'm1_model_name', 'm1_scale', 'm1_shift', 'm1_drift', 'm1_var', 'm1_scale_sd', 'm1_var_sd']
+    print('\t'.join(l))
+
+    if args.input:
+        process_file(args.input)
+    if args.fofn:
+        fofn_f = open(args.fofn)
+        for line in fofn_f:
+            process_file(line.strip())
+        fofn_f.close()

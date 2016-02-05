@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import sys
+
 import h5py
 import numpy as np
 
@@ -14,10 +16,15 @@ class File(object):
                    '/Analyses/Basecall_2D_000/BaseCalled_complement/Events']
     model_path = ['/Analyses/Basecall_2D_000/BaseCalled_template/Model',
                   '/Analyses/Basecall_2D_000/BaseCalled_complement/Model']
+    model_path_path = ['/Analyses/Basecall_2D_000/Summary/basecall_1d_template',
+                       '/Analyses/Basecall_2D_000/Summary/basecall_1d_complement']
     alignment_path = '/Analyses/Basecall_2D_000/BaseCalled_2D/Alignment'
-    fastq_path = ['/Analyses/Basecall_2D_000/BaseCalled_template/Fastq',
-                  '/Analyses/Basecall_2D_000/BaseCalled_complement/Fastq',
-                  '/Analyses/Basecall_2D_000/BaseCalled_2D/Fastq']
+    fastq_path = [['/Analyses/Basecall_2D_000/BaseCalled_template/Fastq',
+                   '/Analyses/Basecall_2D_000/BaseCalled_complement/Fastq',
+                   '/Analyses/Basecall_2D_000/BaseCalled_2D/Fastq'],
+                  ['/Analyses/Basecall_1D_000/BaseCalled_template/Fastq',
+                   '/Analyses/Basecall_1D_000/BaseCalled_complement/Fastq',
+                   '/Analyses/Basecall_2D_000/BaseCalled_2D/Fastq']]
     hairpin_alignment_path = '/Analyses/Basecall_2D_000/HairpinAlign/Alignment'
 
     def __init__(self, file_name=None):
@@ -32,6 +39,9 @@ class File(object):
         assert not self.is_open
         self.file = h5py.File(file_name, 'r')
         self.is_open = True
+        if self.have_chimaera_version():
+            self.chimera_version = self.get_chimaera_version()
+            print('chimaera_version: ' + self.chimera_version, file=sys.stderr)
 
     def close(self):
         """
@@ -40,6 +50,23 @@ class File(object):
         assert self.is_open
         self.file.close()
         self.is_open = False
+
+    def have_chimaera_version(self):
+        """
+        Check if file has chimaera version.
+        """
+        if '/Analyses/Basecall_2D_000' not in self.file:
+            return False
+        _g = self.file['/Analyses/Basecall_2D_000']
+        return 'chimaera version' in dict(_g.attrs)
+
+    def get_chimaera_version(self):
+        """
+        Get Chimaera version.
+        """
+        assert self.have_chimaera_version()
+        _g = self.file['/Analyses/Basecall_2D_000']
+        return dict(_g.attrs)['chimaera version'].decode()
 
     def have_raw_events(self):
         """
@@ -57,6 +84,14 @@ class File(object):
         _g = self.file[File.raw_events_root]
         _r = _g[list(_g.keys())[0]]
         return _r['Events'][()], dict(_r.attrs)
+
+    def get_ed_read_attrs(self):
+        """
+        Get read attributes set under EventDetection.
+        """
+        _g = self.file[File.raw_events_root]
+        _r = _g[list(_g.keys())[0]]
+        return dict(_r.attrs)
 
     def have_basecall_log(self):
         """
@@ -100,6 +135,19 @@ class File(object):
                         for t in _m.dtype.descr])
         return _m[()].astype(_dt), dict(_m.attrs)
 
+    def have_model_path(self, strand):
+        """
+        Check that the Fast5 file has a model path for the given strand.
+        """
+        return File.model_path_path[strand] in self.file and 'model_file' in dict(self.file[File.model_path_path[strand]].attrs)
+
+    def get_model_path(self, strand):
+        """
+        Retrieve the model path for the given strand.
+        """
+        _d = dict(self.file[File.model_path_path[strand]].attrs)
+        return _d['model_file'].decode()
+
     def have_alignment(self):
         """
         Check that the Fast5 file has a 2D alignment.
@@ -119,13 +167,13 @@ class File(object):
         """
         Check that the Fast5 file has fastq entry for the given strand (2 for 2D).
         """
-        return File.fastq_path[strand] in self.file
+        return File.fastq_path[self.chimera_version >= '1.16'][strand] in self.file
 
     def get_fastq(self, strand):
         """
         Retrieve the fastq entry for the given strand (2 for 2D).
         """
-        return self.file[File.fastq_path[strand]][()].decode()
+        return self.file[File.fastq_path[self.chimera_version >= '1.16'][strand]][()].decode()
 
     def have_hairpin_alignment(self):
         """

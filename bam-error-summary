@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+import os
+import sys
+import pysam
+from collections import Counter
+
+# http://pysam.readthedocs.org/en/latest/api.html#pysam.AlignedRead.cigar
+MATCH  = 0  # M
+INS    = 1  # I
+DEL    = 2  # D
+SKIP   = 3  # N
+SOFT   = 4  # S
+HARD   = 5  # H
+PAD    = 6  # P
+EQUAL  = 7  # =
+DIFF   = 8  # X
+
+def cigar_profile(cigar_tuples):
+    """
+    Return a dictionary that tabulates the total number
+    of bases associated with each CIGAR operation.
+
+    cigar_tuples is a list of (op, length) tuples.
+    """
+    cigar_prof = Counter()
+    for cigar_tuple in cigar_tuples:
+        cigar_prof[cigar_tuple[0]] += cigar_tuple[1]
+    #print('cigar_tuples=' + str(cigar_tuples), file=sys.stderr)
+    #print('cigar_prof=' + str(cigar_prof), file=sys.stderr)
+    return cigar_prof
+
+def disambiguate_matches(cigar_prof, nm_val):
+    if not (cigar_prof[MATCH] == 0) and cigar_prof[EQUAL] == 0 and cigar_prof[DIFF] == 0:
+        cigar_prof[DIFF] = nm_val - cigar_prof[INS] - cigar_prof[DEL]
+        cigar_prof[EQUAL] = cigar_prof[MATCH] - cigar_prof[DIFF]
+        cigar_prof[MATCH] = 0
+    elif cigar_prof[MATCH] == 0 and not (cigar_prof[EQUAL] == 0 and cigar_prof[DIFF] == 0):
+        assert nm_val == cigar_prof[INS] + cigar_prof[DEL] + cigar_prof[DIFF]
+
+def get_align_ref_len(cigar_prof):
+    """
+    Return length of alignment on the reference.
+    """
+    return cigar_prof[EQUAL] + cigar_prof[DIFF] + cigar_prof[DEL] + cigar_prof[SKIP] + cigar_prof[PAD]
+
+def get_orig_read_len(cigar_prof):
+    """
+    Return length of read before any clippings.
+    """
+    return cigar_prof[EQUAL] + cigar_prof[DIFF] + cigar_prof[INS] + cigar_prof[SOFT] + cigar_prof[HARD]
+
+def get_align_read_len(cigar_prof):
+    """
+    Return length of alignment on the read.
+    """
+    return cigar_prof[EQUAL] + cigar_prof[DIFF] + cigar_prof[INS]
+
+def get_unalign_read_len(cigar_prof):
+    """
+    Return the total number unaligned bases (hard or softclips.)
+    """
+    return cigar_prof[HARD] + cigar_prof[SOFT]
+
+def get_total_differences(cigar_prof):
+    """
+    Return the total number of differences in the alignment between the query and the reference.
+    (mismatches + insertions + deletions)
+    """
+    return cigar_prof[DIFF] + cigar_prof[INS] + cigar_prof[DEL]
+
+
+def process_file(in_bam, out_txt):
+    print('\t'.join([
+        'read_name',
+        'read_type',
+        'read_len',
+        'align_chr',
+        'align_pos',
+        'align_len',
+        'unalign_len',
+        'matches', 
+        'mismatches',
+        'insertions',
+        'deletions',
+        'tot_errors']))
+    for aln in in_bam:
+        if aln.is_unmapped or aln.is_secondary or aln.is_supplementary or aln.is_qcfail:
+            continue
+        read_name = aln.query_name.split(':')[0]
+        read_type = ':'.join(aln.query_name.split(':')[2:4])
+        #read_len = aln.infer_query_length()
+        align_chr = aln.reference_name
+        align_pos = aln.reference_start
+        cigar_prof = cigar_profile(aln.cigartuples)
+        if aln.has_tag('NM'):
+            disambiguate_matches(cigar_prof, aln.get_tag('NM'))
+        assert cigar_prof[MATCH] == 0
+        # reference length
+        align_len = get_align_ref_len(cigar_prof)
+        assert align_len == aln.reference_length
+        # read length
+        read_len = get_orig_read_len(cigar_prof)
+        assert read_len == aln.infer_query_length() + cigar_prof[HARD]
+        # unaligned length
+        unalign_len = get_unalign_read_len(cigar_prof)
+        assert unalign_len == read_len - get_align_read_len(cigar_prof)
+        # edit distance
+        tot_errors = get_total_differences(cigar_prof)
+        print('\t'.join((str(e) for e in [
+            read_name,
+            read_type,
+            read_len,
+            align_chr,
+            align_pos,
+            align_len,
+            unalign_len,
+            cigar_prof[EQUAL],
+            cigar_prof[DIFF],
+            cigar_prof[INS],
+            cigar_prof[DEL],
+            tot_errors])))
+
+if __name__ == "__main__":
+    description = """
+Summarize alignment errors in the given SAM/BAM file.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('-o', '--output', default='-', help='Output summary file.')
+    parser.add_argument('input', nargs='?', default='-', help='Input SAM/BAM file.')
+    args = parser.parse_args()
+
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.info('args=' + str(args))
+
+    in_bam = pysam.Samfile(args.input)
+    out_txt = open(args.output, 'w') if args.output != '-' else sys.stdout
+
+    process_file(in_bam, out_txt)
+    in_bam.close()
+    out_txt.close()

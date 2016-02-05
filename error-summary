@@ -1,0 +1,51 @@
+#!/bin/bash
+
+printab () {
+    _delim=$'\t'
+    printf "%s" "$1"
+    shift
+    while [ $# -ge 1 ]; do
+        printf "%s%s" "$_delim" "$1"
+        shift
+    done
+    printf "\n"
+}
+
+printab "nanocall_tag" "aln" "aln_tag" \
+    $(head -n1 "$1" | cut -f 2-) "m_vs_n_error_diff" \
+    "m0_errors_per_called_base" "m1_errors_per_called_base" "m2_errors_per_called_base" "n0_errors_per_called_base" "n1_errors_per_called_base" \
+    "m_errors_per_called_base" "n_errors_per_called_base" \
+    "m0_errors_per_aligned_base" "m1_errors_per_aligned_base" "m2_errors_per_aligned_base" "n0_errors_per_aligned_base" "n1_errors_per_aligned_base" \
+    "m_errors_per_aligned_base" "n_errors_per_aligned_base"
+
+for f in "$@"; do
+    tag=${f#*metrichor+nanocall~}
+    nanocall_tag=${tag%%.*}
+    tag=${tag#*.}
+    aln=${tag%%~*}
+    tag=${tag#*~}
+    aln_tag=${tag%%.*}
+    printf "%s\t%s\t%s\t%s\n" "${nanocall_tag}" "${aln}" "${aln_tag}" \
+        "$(tail -n+2 "${f}" |
+        awk -F '\t' -v OFS='\t' '
+{
+    for (i=2;i<=NF;++i) a[i]+=$i;
+}
+END {
+    for (i=1;i<=length(a);++i) {
+        if (i>1) printf("\t");
+        printf("%d", a[1+i]);
+    }
+    printf("\t%d\n", a[12]+a[13]-a[15]-a[16]);
+}
+')"
+done |
+tawk '
+{
+    for (i=0; i<5; i++) $(NF+1)=$(14+i)/$(4+i);
+    for (i=0; i<2; i++) $(NF+1)=($(14+3*i) + $(14+3*i+1))/($(4+3*i) + $(4+3*i+1));
+    for (i=0; i<5; i++) $(NF+1)=$(14+i)/$(9+i);
+    for (i=0; i<2; i++) $(NF+1)=($(14+3*i) + $(14+3*i+1))/($(9+3*i) + $(9+3*i+1));
+    print
+}' |
+sort -k 22nr

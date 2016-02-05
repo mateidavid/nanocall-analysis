@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+
+import argparse
+import collections
+import itertools
+import logging
+import operator
+import os
+import sys
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import matplotlib.colors
+import matplotlib.ticker
+import numpy as np
+
+def cmap_discretize(cmap, N):
+    """Return a discrete colormap from the continuous colormap cmap.
+    
+        cmap: colormap instance, eg. cm.jet. 
+        N: number of colors.
+    
+    Example
+        x = resize(arange(100), (5,100))
+        djet = cmap_discretize(cm.jet, 5)
+        imshow(x, cmap=djet)
+    """
+    
+    if type(cmap) == str:
+        cmap = get_cmap(cmap)
+    colors_i = concatenate((linspace(0, 1., N), (0.,0.,0.,0.)))
+    colors_rgba = cmap(colors_i)
+    indices = linspace(0, 1., N+1)
+    cdict = {}
+    for ki,key in enumerate(('red','green','blue')):
+        cdict[key] = [ (indices[i], colors_rgba[i-1,ki], colors_rgba[i,ki]) for i in range(N+1) ]
+    # Return colormap object.
+    return matplotlib.colors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024)
+
+def add_subplot_axes(ax, rect, axisbg='w'):
+    """
+    http://stackoverflow.com/a/17479417/717706
+    """
+    fig = plt.gcf()
+    box = ax.get_position()
+    width = box.width
+    height = box.height
+    inax_position  = ax.transAxes.transform(rect[0:2])
+    transFigure = fig.transFigure.inverted()
+    infig_position = transFigure.transform(inax_position)    
+    x = infig_position[0]
+    y = infig_position[1]
+    width *= rect[2]
+    height *= rect[3]  # <= Typo was here
+    subax = fig.add_axes([x,y,width,height],axisbg=axisbg)
+    #x_labelsize = subax.get_xticklabels()[0].get_size()
+    #y_labelsize = subax.get_yticklabels()[0].get_size()
+    #x_labelsize *= rect[2]**0.5
+    #y_labelsize *= rect[3]**0.5
+    #subax.xaxis.set_tick_params(labelsize=x_labelsize)
+    #subax.yaxis.set_tick_params(labelsize=y_labelsize)
+    return subax
+
+
+def plot_id_vs_aln(fig_num, data, names):
+    cm_dict = {'m0': 'Greens',
+               'm1': 'Oranges',
+               'm2': 'Greys',
+               'n0': 'Blues',
+               'n1': 'Reds'}
+    nm = matplotlib.colors.BoundaryNorm([0] + [10**i for i in range(5)], 256)
+    subplot_kw = {
+        'xlim': (0, 1),
+        'ylim': (0, 1),
+        'xticks': np.arange(0, 1.01, .2),
+        'yticks': np.arange(0, 1.01, .2),
+        'adjustable': 'box-forced',
+        'aspect': 'equal'
+        }
+    rt_l = ['n0', 'n1', 'm0', 'm1', 'm2']
+    fig, ax_a = plt.subplots(
+        len(data), 5, sharex=True, sharey=True, squeeze=False,
+        gridspec_kw={ 'hspace': .1, 'wspace': .1 },
+        subplot_kw=subplot_kw,
+        num=fig_num, figsize=(5 * len(rt_l), 5 * len(data)))
+    fig.suptitle('Mapped Fraction vs Identity')
+    fig.text(0.5, 0.04, 'Identity', ha='center', va='center')
+    fig.text(0.06, 0.5, 'Mapped Fraction', ha='center', va='center', rotation='vertical')
+    for i in range(len(data)):
+        for j in range(len(rt_l)):
+            d = data[i]
+            rt = rt_l[j]
+            ax = ax_a[i][j]
+            if i == 0:
+                ax.set_title(rt)
+            if j == 0:
+                ax.set_ylabel(names[i])
+            ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+            ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+            ax.grid(which='both')
+            x = [d[rid][rt]['frac_identity'] for rid in d if d[rid][rt]['correct']]
+            y = [d[rid][rt]['frac_align'] for rid in d if d[rid][rt]['correct']]
+            artist = ax.hexbin(x, y, cmap=cm_dict[rt], norm=nm, gridsize=50, mincnt=1, extent=(0,1,0,1))
+            if i == len(data) - 1:
+                cax = add_subplot_axes(ax, [0.1, 0.15, 0.8, 0.05])
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def plot_n_vs_m(fig_num, data, names, idx, idx_tag, vs_2d, subplot_kw={}, cb_top=False):
+    cm_list = ['Blues', 'Reds']
+    nm = matplotlib.colors.BoundaryNorm([0] + [10**i for i in range(5)], 256)
+    subplot_kw.update({
+        'aspect': 'equal'
+        })
+    fig, ax_a = plt.subplots(
+        len(data), 2, sharex=True, sharey=True, squeeze=False,
+        gridspec_kw={ 'hspace': .1, 'wspace': .1 },
+        subplot_kw=subplot_kw,
+        num=fig_num, figsize=(10, 5 * len(data)))
+    fig.suptitle('Nanocall vs Metrichor ' + ['same strand', '2D'][vs_2d] + ': ' + idx_tag)
+    fig.text(0.5, 0.04, 'Metrichor', ha='center', va='center')
+    fig.text(0.06, 0.5, 'Nanocall', ha='center', va='center', rotation='vertical')
+    for i in range(len(data)):
+        for st in range(2):
+            d = data[i]
+            ax = ax_a[i][st]
+            if i == 0:
+                ax.set_title('Strand ' + str(st))
+            if st == 0:
+                ax.set_ylabel(names[i])
+            ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+            ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+            ax.grid(which='both')
+            x_rt = 'm' + str([st, 2][vs_2d])
+            y_rt = 'n' + str(st)
+            x = [d[rid][x_rt][idx] for rid in d if d[rid][x_rt]['correct'] and d[rid][y_rt]['correct']]
+            y = [d[rid][y_rt][idx] for rid in d if d[rid][x_rt]['correct'] and d[rid][y_rt]['correct']]
+            artist = ax.hexbin(x, y, cmap=cm_list[st], norm=nm, gridsize=50, mincnt=1)
+            if (cb_top and i == 0) or (not cb_top and i == len(data) - 1):
+                cax = add_subplot_axes(ax, [0.1, [0.15, 0.9][cb_top], 0.8, 0.05])
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def load_data(fn):
+    _d = np.genfromtxt(fn, names=True, dtype=None)
+    res = dict()
+    for i in range(len(_d)):
+        rn = _d[i]['read_name'].decode()
+        rt = _d[i]['read_type'].decode()
+        rt = rt[0] + rt[-1]
+        if rn not in res:
+            res[rn] = dict()
+        res[rn][rt] = {
+            'read_len': _d[i]['read_len'],
+            'align_chr': _d[i]['align_chr'].decode(),
+            'align_start': _d[i]['align_pos'],
+            'align_ref_len': _d[i]['align_len'],
+            'align_end': _d[i]['align_pos'] + _d[i]['align_len'],
+            'align_read_len': _d[i]['read_len'] - _d[i]['unalign_len'],
+            'errors': _d[i]['tot_errors']}
+        res[rn][rt]['frac_align'] = res[rn][rt]['align_read_len'] / res[rn][rt]['read_len']
+        res[rn][rt]['frac_identity'] = 1 - res[rn][rt]['errors'] / res[rn][rt]['read_len']
+    return res
+
+def filter_data(data, ds_idx):
+    """
+    Keep only reads with Metrichor 2D basecalls. If any other set of basecalls
+    aligns to a different location, assume those basecalls are wrong.
+    """
+    cnt = collections.Counter()
+    rn_to_remove = list()
+    for rn in data.keys():
+        if 'm2' not in data[rn]:
+            rn_to_remove.append(rn)
+            cnt['m2_missing'] += 1
+            continue
+        data[rn]['m2']['correct'] = True
+        for rt in ['m0', 'm1', 'n0', 'n1']:
+            if rt not in data[rn]:
+                logger.debug('ds=' + str(ds_idx) + ' rn=' + rn + ' missing=' + rt)
+                data[rn][rt] = { 'correct': False }
+                cnt[rt + '_missing'] += 1
+            # check alignment pos matches that of 2D basecalls
+            elif (data[rn][rt]['align_chr'] != data[rn]['m2']['align_chr']
+                  or min(data[rn][rt]['align_end'], data[rn]['m2']['align_end'])
+                  - max(data[rn][rt]['align_start'], data[rn]['m2']['align_start']) <= 0):
+                logger.debug('ds=' + str(ds_idx) + ' rn=' + rn + ' bad=' + rt + ' data=' + str(data[rn]))
+                data[rn][rt]['correct'] = False
+                cnt[rt + '_bad'] += 1
+            else:
+                data[rn][rt]['correct'] = True
+        data[rn]['m'] = { 'correct': data[rn]['m0']['correct'] and data[rn]['m1']['correct'] }
+        data[rn]['n'] = { 'correct': data[rn]['n0']['correct'] and data[rn]['n1']['correct'] }
+    for rn in rn_to_remove:
+        del data[rn]
+    return cnt
+
+def write_counts(data, cnt, names):
+    f = open('dataset-summary.txt', 'w')
+    h = ['dataset', 'total_reads', 'm2_missing',
+         'm0_bad', 'n0_bad', 'm0n0_bad',
+         'm1_bad', 'n1_bad', 'm1n1_bad',
+         'm_bad', 'n_bad', 'mn_bad']
+    print('\t'.join(h), file=f)
+    for i in range(len(data)):
+        d = data[i]
+        l = [str(cnt[i]['m2_missing'])]
+        l += [sum((1 for rn in d if not d[rn]['m0']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['n0']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m0']['correct'] and not d[rn]['n0']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m1']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['n1']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m1']['correct'] and not d[rn]['n1']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['n']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m']['correct'] and not d[rn]['n']['correct']))]
+        print(names[i] + '\t' + str(len(d)) + '\t' + '\t'.join((str(v) for v in l)), file=f)
+    f.close()
+
+if __name__ == "__main__":
+    description = """
+    Create nanocall analysis plots
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', default='info')
+    parser.add_argument('--name', type=str, action='append', help='Dataset names', default=[])
+    parser.add_argument('input', nargs='+', help='Input file')
+    args = parser.parse_args()
+
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.info('args=' + str(args))
+
+    # read data
+    data = list()
+    cnt = list()
+    for fn in args.input:
+        d = load_data(fn)
+        c = filter_data(d, len(cnt) + 1)
+        data.append(d)
+        cnt.append(c)
+
+    # assign dataset names
+    for i in range(len(data)):
+        if len(args.name) < i + 1:
+            args.name.append('Dataset ' + str(i+1))
+    logger.info('Dataset names: ' + str(args.name))
+
+    # write counts
+    write_counts(data, cnt, args.name)
+
+    # plot identity vs fraction aligned
+    plot_id_vs_aln(0, data, args.name)
+    plt.savefig('id_vs_aln.pdf', dpi=300)
+
+    # plot nanocall vs metrichor read len
+    subplot_kw = {
+        'xlim': (0, 30000),
+        'ylim': (0, 30000),
+        'xticks': np.arange(0, 30001, 5000),
+        'yticks': np.arange(0, 30001, 5000)
+        }
+    plot_n_vs_m(1, data, args.name, 'read_len', 'Read Length', False, subplot_kw=subplot_kw, cb_top=True)
+    plt.savefig('n_vs_m.read_len.pdf', dpi=300)
+    plot_n_vs_m(2, data, args.name, 'read_len', 'Read Length', True, subplot_kw=subplot_kw, cb_top=True)
+    plt.savefig('n_vs_m2d.read_len.pdf', dpi=300)
+
+    # plot nanocall vs metrichor fraction aligned
+    subplot_kw = {
+        'xlim': (0, 1),
+        'ylim': (0, 1),
+        'xticks': np.arange(0, 1.01, .2),
+        'yticks': np.arange(0, 1.01, .2)
+        }
+    plot_n_vs_m(3, data, args.name, 'frac_align', 'Fraction Aligned', False, subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m.frac_aligned.pdf', dpi=300)
+    plot_n_vs_m(4, data, args.name, 'frac_align', 'Fraction Aligned', True, subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m2d.frac_aligned.pdf', dpi=300)
+
+    # plot nanocall vs metrichor identify
+    plot_n_vs_m(5, data, args.name, 'frac_identity', 'Identity', False, subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m.identity.pdf', dpi=300)
+    plot_n_vs_m(6, data, args.name, 'frac_identity', 'Identity', True, subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m2d.identity.pdf', dpi=300)

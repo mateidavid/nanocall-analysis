@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import operator
+import itertools
+import argparse
+
+import fast5_reader
+
+description = """
+Extract read attributes set under EventDetection.
+"""
+parser = argparse.ArgumentParser(description=description, epilog='')
+parser.add_argument('input', action='store', help='Fast5 file')
+args = parser.parse_args()
+
+fn = args.input
+
+try:
+    f = fast5_reader.File(fn)
+except OSError:
+    print(fn + ': could not open file', file=sys.stderr)
+    sys.exit(1)
+
+a = f.get_ed_read_attrs()
+for k in a:
+    if hasattr(a[k], 'decode'):
+        tmp = a[k].decode()
+    else:
+        tmp = a[k]
+    print(k + '\t' + str(tmp))
+
+f.close()

@@ -19,10 +19,16 @@ args = parser.parse_args()
 fn = args.input
 strand = args.strand
 
-f = fast5_reader.File(fn)
+try:
+    f = fast5_reader.File(fn)
+except OSError:
+    print(fn + ': could not open file', file=sys.stderr)
+    sys.exit(1)
+
 if not f.have_fastq(strand):
-    print('file [' + fn + '] has no fastq for strand [' + str(strand) + ']', file=sys.stderr)
-    sys.exit(0)
+    print(fn + ': no fastq for strand ' + str(strand), file=sys.stderr)
+    sys.exit(1)
+
 fq = f.get_fastq(strand)
 f.close()
 print(fq.strip())

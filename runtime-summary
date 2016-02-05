@@ -1,0 +1,23 @@
+#!/bin/bash
+trap 'echo "exit code $?: LINENO=$LINENO BASH_LINENO=\"${BASH_LINENO[@]}\" FUNCNAME=\"${FUNCNAME[@]}\"" >&2' ERR
+set -eEu
+
+_prog_path=$(readlink -e "${BASH_SOURCE[0]}")
+_prog_name=$(basename "$_prog_path")
+_prog_dir=$(dirname "$_prog_path")
+ROOT_DIR=${ROOT_DIR:-${_prog_dir}}
+NUM_THREADS=${NUM_THREADS:-8}
+
+source ${_prog_dir}/printab.sh
+
+printab "run" "scaling_bp_per_core_hour" "basecalling_bp_per_core_hour"
+for f in "$@"; do
+    tag=${f#*nanocall~}
+    nanocall_tag=${tag%%.*}
+    rt_a=($(${ROOT_DIR}/extract-nanocall-runtimes "$f" | tail -n 1))
+    rt_per_core_hour_a=()
+    for rt in "${rt_a[@]}"; do
+        rt_per_core_hour_a+=($(echo "(${INPUT_SIZE} * 3600) / (${NUM_THREADS} * ${rt})"| bc))
+    done
+    printab "$nanocall_tag" "${rt_per_core_hour_a[@]]}"
+done

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+printf "%s\t%s\t%s\t%s\t%s\t%s\n" "nanocall_tag" "aln" "aln_tag" "m1d_wrong" "n_wrong" "both_wrong"
+for f in "$@"; do
+    tag=${f#*metrichor+nanocall~}
+    nanocall_tag=${tag%%.*}
+    tag=${tag#*.}
+    aln=${tag%%~*}
+    tag=${tag#*~}
+    aln_tag=${tag%%.*}
+    printf "%s\t%s\t%s\t%s\t%s\t%s\n" ${nanocall_tag} ${aln} ${aln_tag} \
+        $(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($3==0 && $4==0)' | wc -l) \
+        $(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($5==0 && $6==0)' | wc -l) \
+        $(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($3==0 && $4==0) && !($5==0 && $6==0)' | wc -l)
+done |
+sort -k 5n

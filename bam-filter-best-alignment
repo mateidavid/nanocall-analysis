@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+import os
+import sys
+import pysam
+from collections import Counter
+
+# http://pysam.readthedocs.org/en/latest/api.html#pysam.AlignedRead.cigar
+MATCH  = 0  # M
+INS    = 1  # I
+DEL    = 2  # D
+SKIP   = 3  # N
+SOFT   = 4  # S
+HARD   = 5  # H
+PAD    = 6  # P
+EQUAL  = 7  # =
+DIFF   = 8  # X
+
+def cigar_profile(cigar_tuples):
+    """
+    Return a dictionary that tabulates the total number
+    of bases associated with each CIGAR operation.
+
+    cigar_tuples is a list of (op, length) tuples.
+    """
+    cigar_prof = Counter()
+    for cigar_tuple in cigar_tuples:
+        cigar_prof[cigar_tuple[0]] += cigar_tuple[1]
+    return cigar_prof
+
+def process_file_sorted(in_bam, out_bam):
+    crt_query_name = ''
+    crt_is_read_1 = None
+    crt_best_aln = None
+    crt_best_num_matches = -1
+    for aln in in_bam:
+        logger.debug('aln.query_name=' + aln.query_name +' crt_query_name=' + crt_query_name)
+        if (crt_best_aln != None
+            and (aln.query_name != crt_query_name
+                or aln.is_read1 != crt_is_read_1)):
+            out_bam.write(crt_best_aln)
+            crt_best_aln = None
+            crt_best_num_matches = -1
+        crt_query_name = aln.query_name
+        crt_is_read_1 = aln.is_read1
+        logger.debug('aln.query_name=' + aln.query_name +' crt_query_name=' + crt_query_name)
+        cigar_prof = cigar_profile(aln.cigartuples)
+        num_matches = cigar_prof[MATCH] + cigar_prof[EQUAL]
+        if num_matches > crt_best_num_matches:
+            crt_best_aln = aln.__copy__()
+            crt_best_num_matches = num_matches
+    if crt_best_aln != None:
+        out_bam.write(crt_best_aln)
+
+def process_file_unsorted(in_bam, out_bam):
+    # do full pass, keeping best alignment
+    best_align = dict()
+    for aln in in_bam:
+        logger.debug('aln=' + str(aln))
+        if aln.is_unmapped:
+            continue
+        # dictionary key for this alignment
+        key = (aln.query_name, aln.is_paired, aln.is_read2)
+        # compute number of matches
+        cigar_prof = cigar_profile(aln.cigartuples)
+        num_matches = cigar_prof[MATCH] + cigar_prof[EQUAL]
+        if (key not in best_align
+            or best_align[key][0] < num_matches):
+            best_align[key] = [num_matches, aln.__copy__()]
+    # output best alignments
+    for key in best_align:
+        out_bam.write(best_align[key][1])
+
+
+if __name__ == "__main__":
+    description = """
+Filter SAM/BAM file by keeping the 'best' alignment for each read only. The
+file is assumed to be sorted by read name. Here, 'best' is defined as the
+alignment with the maximum number of cigar match operations ('M' and '=').
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('-s', '--sorted', action='store_true', help='Input is sorted by query name AND index in pair.')
+    parser.add_argument('-o', '--output', default='-', help='Output SAM file.')
+    parser.add_argument('input', nargs='?', default='-', help='Input SAM/BAM file.')
+    args = parser.parse_args()
+
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.info('args=' + str(args))
+
+    in_bam = pysam.Samfile(args.input)
+    out_mode = 'w' + ['h', 'b'][args.output.endswith('.bam')]
+    out_bam = pysam.Samfile(args.output, mode=out_mode, template=in_bam)
+
+    if args.sorted:
+        process_file_sorted(in_bam, out_bam)
+    else:
+        process_file_unsorted(in_bam, out_bam)
+
+    in_bam.close()
+    out_bam.close()

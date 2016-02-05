@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# get scaling & basecalling runtimes from nanocall log file
+
+printab() {
+    _delim=$'\t'
+    printf "%s" "$1"
+    shift
+    while [ $# -ge 1 ]; do
+        printf "%s%s" "$_delim" "$1"
+        shift
+    done
+    printf "\n"
+}
+
+printab "scaling" "basecalling"
+printab \
+    $(tr '\r' '\n' <"$1" |
+    grep -n 'seconds$' |
+    tr ':' ' ' |
+    sed 's/  */\t/g' |
+    sort -k 3n -k 1n |
+    tail -n 2 |
+    cut -f 6)
