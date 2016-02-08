@@ -91,6 +91,7 @@ def process_file(in_bam, out_txt):
             continue
         read_name = aln.query_name.split(':')[0]
         read_type = ':'.join(aln.query_name.split(':')[2:4])
+        read_type = read_type[0] + read_type[-1]
         #read_len = aln.infer_query_length()
         align_chr = aln.reference_name
         align_pos = aln.reference_start

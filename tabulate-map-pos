@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+
+import argparse
+import itertools
+import logging
+import operator
+import os
+import sys
+import numpy as np
+from collections import Counter
+
+import bam_summary
+
+def interval_intersect(a, b):
+    return (a[0] <= b[0] and b[0] < a[1]) or (b[0] <= a[0] and a[0] < b[1])
+
+def process_data(d, ref_rt):
+    # determine read types
+    rt_d = {e['read_type'].decode(): True for e in d}
+    del rt_d[ref_rt]
+    rt_l = list(rt_d.keys())
+    rt_l.sort()
+    assert len(rt_l) == 4
+    logger.debug('read_type_list: ' + str(rt_l))
+    # now check mapping correctness for each read
+    print('\t'.join(['read_name', ref_rt] + rt_l))
+    for rn, g in itertools.groupby(d, operator.itemgetter('read_name')):
+        d2 = {e['read_type'].decode(): e for e in g}
+        if ref_rt not in d2:
+            print('\t'.join([rn.decode(), '1']
+                            + ['0'] * len(rt_l)))
+        else:
+            print('\t'.join([rn.decode(), '0']
+                            + ['2' if rt not in d2
+                               else '0' if bam_summary.align_overlap(d2[rt], d2[ref_rt])
+                               else '1'
+                               for rt in rt_l]))
+
+if __name__ == "__main__":
+    description = """
+Check if alignment positions of various read types match the alignment of the reference read type.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('-o', '--output', default='-', help='Output summary file.')
+    parser.add_argument('-r', '--ref-type', default='m2', help='Reference alignment type.')
+    parser.add_argument('input', nargs='?', default='-', help='Input SAM/BAM summary file.')
+    args = parser.parse_args()
+
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.info('args=' + str(args))
+
+    d = bam_summary.load_data(open(args.input) if args.input != '-' else sys.stdin)
+    process_data(d, args.ref_type)

@@ -52,10 +52,10 @@ TARGETS = \
 	  $(foreach al,${ALIGNERS_TAG},\
 	    $(foreach cs,metrichor nanocall~${NANOCALL_TAG},\
 	      ${dss}.${cs}.${al}.bam \
-	      ${dss}.${cs}.${al}.bam.errors.tsv) \
-	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.errors.tsv \
+	      ${dss}.${cs}.${al}.bam.summary.tsv) \
+	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.bam.summary.tsv \
 	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.error_table.tsv \
-	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.map_pos.tsv \
+	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.map_pos_table.tsv \
 	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.params_table.tsv))
 
 all: ${SPECIAL_TARGETS} ${TARGETS}
@@ -133,11 +133,11 @@ $(eval $(call map_bwa_metrichor_fq,${dss})))
 
 define get_nanocall_fa
 ${1}.nanocall~${NANOCALL_TAG}.fa.gz: ${1}.fofn
-	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G" :; \
+	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G -q !default" :; \
 	{\
-	${NANOCALL_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} --stats $$(@:.fa.gz=.stats) $$< \
-	| sed 's/:\([01]\)$$$$/:nanocall:\1/' \
-	| pigz >$$@; \
+	  ${NANOCALL_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} --stats $$(@:.fa.gz=.stats) $$< \
+	  | sed 's/:\([01]\)$$$$/:nanocall:\1/' \
+	  | pigz >$$@; \
 	} 2>$$(@:.fa.gz=.log)
 ${1}.nanocall~${NANOCALL_TAG}.stats: ${1}.nanocall~${NANOCALL_TAG}.fa.gz
 endef
@@ -172,56 +172,68 @@ endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call map_bwa_nanocall_fa,${dss})))
 
-define count_errors
-${1}.bam.errors.tsv: ${1}.bam
+define make_bam_summary
+${1}.bam.summary.tsv: ${1}.bam
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/bam-error-summary $$< >$$@ 2>.$$@.log
+	${ROOT_DIR}/bam-summary $$< >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach cs,metrichor nanocall~${NANOCALL_TAG},\
 $(foreach al,${ALIGNERS_TAG},\
-$(eval $(call count_errors,${dss}.${cs}.${al})))))
+$(eval $(call make_bam_summary,${dss}.${cs}.${al})))))
 
-define merge_tsv
-${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.errors.tsv: \
-	  ${1}.metrichor.${2}.bam.errors.tsv \
-	  ${1}.nanocall~${NANOCALL_TAG}.${2}.bam.errors.tsv
+define make_error_table
+${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv: \
+	  ${1}.metrichor.${2}.bam.summary.tsv \
+	  ${1}.nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
-	  head -n1 $$<; \
-	  for f in $$^; do tail -n+2 $$$$f; done | sort; \
+	  diff -q \
+	    <(head -n1 ${1}.metrichor.${2}.bam.summary.tsv) \
+	    <(head -n1 ${1}.nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv) >&2 && \
+	  { \
+	    head -n1 $$<; \
+	    for f in $$^; do tail -n+2 $$$$f; done | sort; \
+	  }; \
 	} >$$@ 2>.$$@.log
 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.error_table.tsv: \
-	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.errors.tsv
+	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	${ROOT_DIR}/tabulate-errors $$< >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach al,${ALIGNERS_TAG},\
-$(eval $(call merge_tsv,${dss},${al}))))
+$(eval $(call make_error_table,${dss},${al}))))
 
-define check_map_pos
-${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos.tsv: \
-	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.errors.tsv
+define make_map_pos_table
+${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv: \
+	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/check-map-pos $$< >$$@ 2>.$$@.log
+	${ROOT_DIR}/tabulate-map-pos $$< >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach al,${ALIGNERS_TAG},\
-$(eval $(call check_map_pos,${dss},${al}))))
+$(eval $(call make_map_pos_table,${dss},${al}))))
 
 define make_params_table
 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.params_table.tsv: \
-	 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos.tsv \
-	 ${1}.metrichor.params.tsv ${1}.nanocall~${NANOCALL_TAG}.stats
+	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv \
+	  ${1}.metrichor.params.tsv \
+	  ${1}.nanocall~${NANOCALL_TAG}.stats
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
-	join -t$$$$'\t' <(head -n1 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos.tsv) \
-	  <(head -n1 ${1}.metrichor.params.tsv) \
-	| join -t$$$$'\t' - <(head -n1 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9-); \
-	join -t$$$$'\t' <(tail -n+2 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos.tsv | sort -k1) \
-	  <(tail -n+2 ${1}.metrichor.params.tsv | sort -k1) \
-	| join -t$$$$'\t' - <(tail -n+2 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9- | sort -k1); \
+	  join -t$$$$'\t' \
+	    <(head -n1 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv) \
+	    <(head -n1 ${1}.metrichor.params.tsv) \
+	  | join -t$$$$'\t' \
+	    - \
+	    <(head -n1 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9-); \
+	  join -t$$$$'\t' \
+	    <(tail -n+2 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv | sort -k1) \
+	    <(tail -n+2 ${1}.metrichor.params.tsv | sort -k1) \
+	  | join -t$$$$'\t' \
+	    - \
+	    <(tail -n+2 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9- | sort -k1); \
 	} >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
@@ -237,7 +249,7 @@ $(foreach dss,${DATASUBSETS},\
 $(eval $(call make_error_summary,${dss})))
 
 define make_map_pos_summary
-${1}.summary.map_pos.tsv: ${1}.metrichor+nanocall~*.map_pos.tsv
+${1}.summary.map_pos.tsv: ${1}.metrichor+nanocall~*.map_pos_table.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
 endef
@@ -246,12 +258,11 @@ $(eval $(call make_map_pos_summary,${dss})))
 
 define make_runtime_measure
 ${1}.nanocall~${NANOCALL_TAG}.timing.log: ${1}.fofn
-	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G" :; \
+	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G -q !default" :; \
 	{ \
-	${NANOCALL_RELEASE_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} $$< \
-	  2>&1 >/dev/null | \
-	tr '\r' '\n' | \
-	grep "^Processed"; \
+	  ${NANOCALL_RELEASE_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} $$< \
+	    2>&1 >/dev/null | \
+	  ${ROOT_DIR}/extract-nanocall-runtimes; \
 	} >$$@
 endef
 $(foreach dss,${DATASUBSETS},\

@@ -14,8 +14,10 @@ printab() {
 }
 
 printab "scaling" "basecalling"
+
 printab \
-    $(tr '\r' '\n' <"$1" |
+    $(cat "$@" |
+    tr '\r' '\n' |
     grep -n 'seconds$' |
     tr ':' ' ' |
     sed 's/  */\t/g' |

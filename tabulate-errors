@@ -1,19 +1,86 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-printab "read_name" \
-    "m0_read_len" "m1_read_len" "m2_read_len" "n0_read_len" "n1_read_len" \
-    "m0_aln_len" "m1_aln_len" "m2_aln_len" "n0_aln_len" "n1_aln_len" \
-    "m0_errors" "m1_errors" "m2_errors" "n0_errors" "n1_errors"
-zc "$@" |
-tail -n+2 |
-bedtools groupby -g 1,4 -c 2,3,5,5,3,6,12 -o count,max,min,max,collapse,collapse,collapse |
-tawk '
-$3==5 && $6<$5+$4 {
-    printf("%s", $1)
-    for (i = 7; i <= NF; ++i) {
-        split($i,a,",");
-        printf("\t%s\t%s\t%s\t%s\t%s", a[1], a[2], a[3], a[4], a[5]);
-    }
-    printf("\n")
-}
-'
+import argparse
+import collections
+import itertools
+import logging
+import operator
+import os
+import sys
+import numpy as np
+
+import bam_summary
+
+def filter_rn(data, fcn):
+    """
+    Get read names which pass given lambda filter applied to their mappings.
+    """
+    res = dict()
+    for rn, g in itertools.groupby(data, operator.itemgetter('read_name')):
+        if fcn(list(g)):
+            res[rn] = True
+    return res
+
+def good_rn(l, ref_rt):
+    """
+    Check:
+    - there are entries for all read types
+    - the mappings of other rts overlap the one for m2
+    """
+    # check 5 read types
+    #print('good_rn: l=' + str(l), file=sys.stderr)
+    _rt_l = {e['read_type'].decode(): True for e in l}.keys()
+    if len(_rt_l) != 5:
+        print(l[0]['read_name'].decode() + ': not 5 read types: ' + str(_rt_l), file=sys.stderr)
+        return False
+    # check all mappings overlap the one for ref_rt
+    d2 = {e['read_type'].decode(): e for e in l}
+    if not all((e['read_type'].decode() == ref_rt or bam_summary.align_overlap(e, d2[ref_rt])
+                for e in l)):
+        print(l[0]['read_name'].decode() + ': not all overlapping: ' + str(l), file=sys.stderr)
+        return False
+    return True
+
+def process_data(d, args):
+    good_rn_d = filter_rn(d, lambda l: good_rn(l, args.ref_type))
+    logger.info('good_rn: ' + str(len(list(good_rn_d.keys()))))
+    first = True
+    for rn, g in itertools.groupby(d, operator.itemgetter('read_name')):
+        if rn not in good_rn_d:
+            continue
+        l = list(g)
+        l.sort(key=operator.itemgetter('read_type'))
+        if first:
+            print('\t'.join(['read_name']
+                            + [e['read_type'].decode() + '_read_len' for e in l]
+                            + [e['read_type'].decode() + '_aln_len' for e in l]
+                            + [e['read_type'].decode() + '_errors' for e in l]))
+            first = False
+        print('\t'.join((str(v) for v in [rn.decode()]
+                         + [e['read_len'] for e in l]
+                         + [e['align_len'] for e in l]
+                         + [e['tot_errors'] for e in l])))
+
+if __name__ == "__main__":
+    description = """
+    Read Metrichor and Nanocall BAM summaries and tabulate read lengths, alignment lengths, and errors,
+    for reads where all 4 1D mappings overlap the 2D mapping.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('-o', '--output', default='-', help='Output summary file.')
+    parser.add_argument('-r', '--ref-type', default='m2', help='Reference alignment type.')
+    parser.add_argument('input', nargs='?', default='-', help='Input SAM/BAM summary file.')
+    args = parser.parse_args()
+
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.info('args=' + str(args))
+
+    d = bam_summary.load_data(open(args.input) if args.input != '-' else sys.stdin)
+    process_data(d, args)
