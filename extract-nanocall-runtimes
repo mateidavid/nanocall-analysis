@@ -15,12 +15,15 @@ printab() {
 
 printab "scaling" "basecalling"
 
-printab \
-    $(cat "$@" |
-    tr '\r' '\n' |
-    grep -n 'seconds$' |
-    tr ':' ' ' |
-    sed 's/  */\t/g' |
-    sort -k 3n -k 1n |
-    tail -n 2 |
-    cut -f 6)
+t=($(cat "$@" |
+        tr '\r' '\n' |
+        grep -n 'seconds$' |
+        tr ':' ' ' |
+        sed 's/  */\t/g' |
+        sort -k 3n -k 1n |
+        tail -n 2 |
+        cut -f 6))
+
+[ ${#t[@]} -gt 1 ] || t=(0 ${t[0]})
+
+printab "${t[@]:0:2}"
