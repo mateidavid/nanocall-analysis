@@ -175,7 +175,7 @@ $(eval $(call map_bwa_nanocall_fa,${dss})))
 define make_bam_summary
 ${1}.bam.summary.tsv: ${1}.bam
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/bam-summary $$< >$$@ 2>.$$@.log
+	${ROOT_DIR}/make-bam-summary $$< >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach cs,metrichor nanocall~${NANOCALL_TAG},\
