@@ -259,11 +259,10 @@ $(eval $(call make_map_pos_summary,${dss})))
 define make_runtime_measure
 ${1}.nanocall~${NANOCALL_TAG}.timing.log: ${1}.fofn
 	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G -q !default" :; \
-	{ \
-	  ${NANOCALL_RELEASE_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} $$< \
-	    2>&1 >/dev/null | \
-	  ${ROOT_DIR}/extract-nanocall-runtimes; \
-	} >$$@
+	${NANOCALL_RELEASE_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} $$< 2>$$@ >/dev/null
+${1}.nanocall~${NANOCALL_TAG}.timing.stats: ${1}.nanocall~${NANOCALL_TAG}.timing.log
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	${ROOT_DIR}/extract-nanocall-runtimes <$$< >$$@
 endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call make_runtime_measure,${dss})))
