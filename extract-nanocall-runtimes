@@ -15,15 +15,25 @@ printab() {
 
 printab "scaling" "basecalling"
 
-t=($(cat "$@" |
+a=($(cat "$@" |
         tr '\r' '\n' |
         grep -n 'seconds$' |
         tr ':' ' ' |
         sed 's/  */\t/g' |
         sort -k 3n -k 1n |
         tail -n 2 |
-        cut -f 6))
+        cut -f 3,6))
 
-[ ${#t[@]} -gt 1 ] || t=(0 ${t[0]})
+if [ ${#a[@]} -eq 2 ]; then
+    t=(0 ${a[1]})
+elif [ ${#a[@]} -eq 4 ]; then
+    if [ ${a[0]} = ${a[2]} ]; then
+        t=(${a[1]} ${a[3]})
+    else
+        t=(0 ${a[3]})
+    fi
+else
+    t=('?' '?')
+fi
 
-printab "${t[@]:0:2}"
+printab "${t[@]}"
