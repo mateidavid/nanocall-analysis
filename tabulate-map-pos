@@ -27,8 +27,9 @@ def process_data(d, ref_rt):
     for rn, g in itertools.groupby(d, operator.itemgetter('read_name')):
         d2 = {e['read_type'].decode(): e for e in g}
         if ref_rt not in d2:
-            print('\t'.join([rn.decode(), '1']
-                            + ['0'] * len(rt_l)))
+            continue
+            #print('\t'.join([rn.decode(), '1']
+            #                + ['0'] * len(rt_l)))
         else:
             print('\t'.join([rn.decode(), '0']
                             + ['2' if rt not in d2
