@@ -41,7 +41,6 @@ class File(object):
         self.is_open = True
         if self.have_chimaera_version():
             self.chimera_version = self.get_chimaera_version()
-            print('chimaera_version: ' + self.chimera_version, file=sys.stderr)
 
     def close(self):
         """
