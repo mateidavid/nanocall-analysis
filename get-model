@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import operator
+import itertools
+import argparse
+
+import fast5_reader
+
+description = """
+Extract model from Fast5 file.
+"""
+parser = argparse.ArgumentParser(description=description, epilog='')
+parser.add_argument('--strand', action='store', type=int, default=0, help='Strand')
+parser.add_argument('input', action='store', help='Fast5 file')
+args = parser.parse_args()
+
+fn = args.input
+strand = args.strand
+
+f = fast5_reader.File(fn)
+if not f.have_model(strand):
+    print('file [' + fn + '] has no model for strand [' + str(strand) + ']', file=sys.stderr)
+    sys.exit(0)
+m, a = f.get_model(strand)
+f.close()
+
+for k in a.keys():
+    print('#' + k + '\t' + str(a[k]))
+
+print('\t'.join(m.dtype.names))
+for e in m:
+    print('\t'.join([str(v) for v in list(e)]))
