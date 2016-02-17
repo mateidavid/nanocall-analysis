@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import operator
+import itertools
+import argparse
+
+import numpy as np
+import fast5_reader
+
+description = """
+Extract events from Fast5 file.
+"""
+parser = argparse.ArgumentParser(description=description, epilog='')
+parser.add_argument('--strand', action='store', type=int, default=0, help='Strand')
+parser.add_argument('--start', action='store', type=int, default=0, help='Start index')
+parser.add_argument('--end', action='store', type=int, default=0, help='End index')
+parser.add_argument('--hairpin-base', action='store_true', default=False, help='Start&End computed wrt to hairpin event')
+parser.add_argument('--correct', action='store_true', default=False, help='Apply drift correction')
+parser.add_argument('input', action='store', help='Fast5 file')
+args = parser.parse_args()
+
+fn = args.input
+strand = args.strand
+start_idx = args.start
+end_idx = args.end
+hairpin_base = args.hairpin_base
+assert 0 <= strand and strand < 3
+assert not hairpin_base or strand == 2, 'hairpin_base only relevant to raw events (strand==2)'
+
+f = fast5_reader.File(fn)
+if strand < 2:
+    if not f.have_events(strand):
+        print(fn + ': no events for strand [' + str(strand) + ']', file=sys.stderr)
+        sys.exit(0)
+    event, event_params = f.get_events(strand)
+    if args.correct:
+        model, model_params = f.get_model(strand)
+        event['mean'] -= model_params['drift'] * (event['start'] - event_params['start_time'])
+else:
+    if not f.have_raw_events():
+        print(fn + ': no raw events', file=sys.stderr)
+        sys.exit(0)
+    event_raw, event_params = f.get_raw_events()
+    dt = np.dtype([('mean', 'float'), ('stdv', 'float'), ('start', 'float'), ('length', 'float')])
+    event = np.fromiter(((e['mean'], e['stdv'], e['start'] / 5000, e['length'] / 5000) for e in event_raw), dt)
+f.close()
+
+if not hairpin_base:
+    if end_idx == 0:
+        end_idx = len(event)
+else:
+    if not event_params['hairpin_found']:
+        print(fn + ': hairpin not found', file=sys.stderr)
+        sys.exit(0)
+    start_idx += event_params['hairpin_event_index']
+    end_idx += event_params['hairpin_event_index']
+
+for k in event_params.keys():
+    print('#' + k + '\t' + str(event_params[k]))
+
+print('\t'.join(event.dtype.names))
+for e in event[start_idx:end_idx]:
+    print('\t'.join([str(v) for v in list(e)]))

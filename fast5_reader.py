@@ -12,8 +12,10 @@ class File(object):
     """
     raw_events_root = '/Analyses/EventDetection_000/Reads'
     basecall_log_path = '/Analyses/Basecall_2D_000/Log'
-    events_path = ['/Analyses/Basecall_2D_000/BaseCalled_template/Events',
-                   '/Analyses/Basecall_2D_000/BaseCalled_complement/Events']
+    events_path = [['/Analyses/Basecall_2D_000/BaseCalled_template/Events',
+                    '/Analyses/Basecall_2D_000/BaseCalled_complement/Events'],
+                    ['/Analyses/Basecall_1D_000/BaseCalled_template/Events',
+                     '/Analyses/Basecall_1D_000/BaseCalled_complement/Events']]
     model_path = ['/Analyses/Basecall_2D_000/BaseCalled_template/Model',
                   '/Analyses/Basecall_2D_000/BaseCalled_complement/Model']
     model_path_path = ['/Analyses/Basecall_2D_000/Summary/basecall_1d_template',
@@ -108,15 +110,15 @@ class File(object):
         """
         Check that the Fast5 file has an event sequence for the given strand.
         """
-        return File.events_path[strand] in self.file
+        return File.events_path[self.chimera_version >= '1.16'][strand] in self.file
 
     def get_events(self, strand):
         """
         Retrieve the event sequence and its attributes for the given strand.
         """
-        _e = self.file[File.events_path[strand]]
+        _e = self.file[File.events_path[self.chimera_version >= '1.16'][strand]]
         _dt = np.dtype([t if 'S' not in t[1] else (t[0], t[1].replace('S', 'U'))
-                        for t in _e.dtype.descr]) 
+                        for t in _e.dtype.descr])
         return _e[()].astype(_dt), dict(_e.attrs)
 
     def have_model(self, strand):
