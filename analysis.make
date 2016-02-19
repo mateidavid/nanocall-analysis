@@ -85,7 +85,7 @@ ${1}.metrichor.${2}.fq.gz: ${1}.fofn
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
 	cat $$< \
-	| while read -r f; do ${ROOT_DIR}/get_fastq --strand ${2} $$$${f} || true; done \
+	| while read -r f; do ${ROOT_DIR}/get-fastq --strand ${2} $$$${f} || true; done \
 	| sed 's/_template /_0 /;s/_complement /_1 /;s/_2d /_2 /' \
 	| sed 's/^@\([^_]*\)_Basecall_2D_000_\([012]\) \(.*\)$$$$/@\1:\3:metrichor:\2/' \
 	| pigz >$$@; \
