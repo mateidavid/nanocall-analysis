@@ -8,6 +8,8 @@ import argparse
 
 import fast5_reader
 
+key_order = ['scale', 'shift', 'drift', 'var', 'scale_sd', 'var_sd', 'stay_prob', 'skip_prob']
+
 def process_file(fn):
     try:
         f5 = fast5_reader.File(fn)
@@ -35,9 +37,9 @@ def process_file(fn):
             l += ['']
         if f5.have_model(st):
             _, p = f5.get_model(st)
-            l += [p['scale'], p['shift'], p['drift'], p['var'], p['scale_sd'], p['var_sd']]
+            l += [p[k] for k in key_order]
         else:
-            l += [1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+            l += ['.'] * len(key_order)
 
     print('\t'.join((str(v) for v in l)))
     f5.close()
@@ -51,9 +53,10 @@ if __name__ == "__main__":
     parser.add_argument('input', nargs='?', help='Fast5 file')
     args = parser.parse_args()
 
-    l = ['read_name',
-         'm0_model_name', 'm0_scale', 'm0_shift', 'm0_drift', 'm0_var', 'm0_scale_sd', 'm0_var_sd',
-         'm1_model_name', 'm1_scale', 'm1_shift', 'm1_drift', 'm1_var', 'm1_scale_sd', 'm1_var_sd']
+    l = ['read_name']
+    for st in range(2):
+        prefix = 'm' + str(st) + '_'
+        l += [prefix + key for key in ['model_name'] + key_order]
     print('\t'.join(l))
 
     if args.input:
