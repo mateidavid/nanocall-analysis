@@ -84,11 +84,10 @@ define extract_metrichor_fq
 ${1}.metrichor.${2}.fq.gz: ${1}.fofn
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
-	cat $$< \
-	| while read -r f; do ${ROOT_DIR}/get-fastq --strand ${2} $$$${f} || true; done \
-	| sed 's/_template /_0 /;s/_complement /_1 /;s/_2d /_2 /' \
-	| sed 's/^@\([^_]*\)_Basecall_2D_000_\([012]\) \(.*\)$$$$/@\1:\3:metrichor:\2/' \
-	| pigz >$$@; \
+	  ${ROOT_DIR}/get-fastq --strand ${2} --fofn $$< | \
+	  sed 's/_template /_0 /;s/_complement /_1 /;s/_2d /_2 /' | \
+	  sed 's/^@\([^_]*\)_[^ ]*_\([012]\) \(.*\)$$$$/@\1:\3:metrichor:\2/' | \
+	  pigz >$$@; \
 	} 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
@@ -108,11 +107,11 @@ ${1}.metrichor.lastal~${LASTAL_TAG}.bam: $(foreach st,0 1 2,${1}.metrichor.${st}
 	$(call get_reference,${1}).fasta.lastdb.tis
 	SGE_RREQ="-N $$@ -l h_tvmem=60G" :; \
 	{ \
-	zcat $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) \
-	| last.dir/lastal ${LASTAL_PARAMS} -Q1 $(call get_reference,${1}).fasta.lastdb - \
-	| ${ROOT_DIR}/arq5x-nanopore-scripts/maf-convert.py sam - \
-	| samtools view -Sh -T $(call get_reference,${1}).fasta - \
-	| ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+	  zcat $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) | \
+	  last.dir/lastal ${LASTAL_PARAMS} -Q1 $(call get_reference,${1}).fasta.lastdb - | \
+	  ${ROOT_DIR}/arq5x-nanopore-scripts/maf-convert.py sam - | \
+	  samtools view -Sh -T $(call get_reference,${1}).fasta - | \
+	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
 	} 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
@@ -123,9 +122,9 @@ ${1}.metrichor.bwa~${BWA_TAG}.bam: $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz
 	$(call get_reference,${1}).fasta.bwt
 	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G" :; \
 	{ \
-	zcat $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) \
-	| ${BWA_DIR}/bwa mem ${BWA_PARAMS} $(call get_reference,${1}).fasta - \
-	| ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+	  zcat $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) | \
+	  ${BWA_DIR}/bwa mem ${BWA_PARAMS} $(call get_reference,${1}).fasta - | \
+	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
 	} 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
@@ -135,9 +134,9 @@ define get_nanocall_fa
 ${1}.nanocall~${NANOCALL_TAG}.fa.gz: ${1}.fofn
 	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G -q !default" :; \
 	{\
-	  ${NANOCALL_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} --stats $$(@:.fa.gz=.stats) $$< \
-	  | sed 's/:\([01]\)$$$$/:nanocall:\1/' \
-	  | pigz >$$@; \
+	  ${NANOCALL_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} --stats $$(@:.fa.gz=.stats) $$< | \
+	  sed 's/:\([01]\)$$$$/:nanocall:\1/' | \
+	  pigz >$$@; \
 	} 2>$$(@:.fa.gz=.log)
 ${1}.nanocall~${NANOCALL_TAG}.stats: ${1}.nanocall~${NANOCALL_TAG}.fa.gz
 endef
@@ -149,11 +148,11 @@ ${1}.nanocall~${NANOCALL_TAG}.lastal~${LASTAL_TAG}.bam: \
 	  ${1}.nanocall~${NANOCALL_TAG}.fa.gz $(call get_reference,${1}).fasta.lastdb.tis
 	SGE_RREQ="-N $$@ -l h_tvmem=60G" :; \
 	{ \
-	zc ${1}.nanocall~${NANOCALL_TAG}.fa.gz \
-	| last.dir/lastal ${LASTAL_PARAMS} -Q0 $(call get_reference,${1}).fasta.lastdb - \
-	| ${ROOT_DIR}/arq5x-nanopore-scripts/maf-convert.py sam - \
-	| samtools view -Sh -T $(call get_reference,${1}).fasta - \
-	| ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+	  zc ${1}.nanocall~${NANOCALL_TAG}.fa.gz | \
+	  last.dir/lastal ${LASTAL_PARAMS} -Q0 $(call get_reference,${1}).fasta.lastdb - | \
+	  ${ROOT_DIR}/arq5x-nanopore-scripts/maf-convert.py sam - | \
+	  samtools view -Sh -T $(call get_reference,${1}).fasta - | \
+	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
 	} 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
@@ -164,9 +163,9 @@ ${1}.nanocall~${NANOCALL_TAG}.bwa~${BWA_TAG}.bam: \
 	  ${1}.nanocall~${NANOCALL_TAG}.fa.gz $(call get_reference,${1}).fasta.bwt
 	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G" :; \
 	{ \
-	zc ${1}.nanocall~${NANOCALL_TAG}.fa.gz \
-	| ${BWA_DIR}/bwa mem ${BWA_PARAMS} $(call get_reference,${1}).fasta - \
-	| ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+	  zc ${1}.nanocall~${NANOCALL_TAG}.fa.gz | \
+	  ${BWA_DIR}/bwa mem ${BWA_PARAMS} $(call get_reference,${1}).fasta - | \
+	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
 	} 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
@@ -224,14 +223,14 @@ ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.params_table.tsv: \
 	{ \
 	  join -t$$$$'\t' \
 	    <(head -n1 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv) \
-	    <(head -n1 ${1}.metrichor.params.tsv) \
-	  | join -t$$$$'\t' \
+	    <(head -n1 ${1}.metrichor.params.tsv) | \
+	  join -t$$$$'\t' \
 	    - \
 	    <(head -n1 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9-); \
 	  join -t$$$$'\t' \
 	    <(tail -n+2 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv | sort -k1) \
-	    <(tail -n+2 ${1}.metrichor.params.tsv | sort -k1) \
-	  | join -t$$$$'\t' \
+	    <(tail -n+2 ${1}.metrichor.params.tsv | sort -k1) | \
+	  join -t$$$$'\t' \
 	    - \
 	    <(tail -n+2 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9- | sort -k1); \
 	} >$$@ 2>.$$@.log
