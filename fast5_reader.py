@@ -41,8 +41,7 @@ class File(object):
         assert not self.is_open
         self.file = h5py.File(file_name, 'r')
         self.is_open = True
-        if self.have_chimaera_version():
-            self.chimera_version = self.get_chimaera_version()
+        self.chimera_version = self.get_chimaera_version()
 
     def close(self):
         """
@@ -52,22 +51,19 @@ class File(object):
         self.file.close()
         self.is_open = False
 
-    def have_chimaera_version(self):
-        """
-        Check if file has chimaera version.
-        """
-        if '/Analyses/Basecall_2D_000' not in self.file:
-            return False
-        _g = self.file['/Analyses/Basecall_2D_000']
-        return 'chimaera version' in dict(_g.attrs)
-
     def get_chimaera_version(self):
         """
         Get Chimaera version.
         """
-        assert self.have_chimaera_version()
-        _g = self.file['/Analyses/Basecall_2D_000']
-        return dict(_g.attrs)['chimaera version'].decode()
+        for path in ['/Analyses/Basecall_2D_000',
+                     '/Analyses/Basecall_1D_000',
+                     '/Analyses/Hairpin_Split_000']:
+            if path not in self.file:
+                continue
+            _d = dict(self.file[path])
+            if 'chimaera version' not in _d:
+                continue
+            return _d['chimaera version'].decode()
 
     def have_raw_events(self):
         """
