@@ -8,27 +8,32 @@ import argparse
 
 import fast5_reader
 
-description = """
-Extract 2D Fastq from Fast5 file.
-"""
-parser = argparse.ArgumentParser(description=description, epilog='')
-parser.add_argument('--strand', action='store', type=int, default=0, help='Strand (2 for 2D)')
-parser.add_argument('input', action='store', help='Fast5 file')
-args = parser.parse_args()
+def process_file(fn, st):
+    try:
+        f = fast5_reader.File(fn)
+        if not f.have_fastq(st):
+            print(fn + ': no fastq for strand ' + str(st), file=sys.stderr)
+            return
+        fq = f.get_fastq(st)
+        f.close()
+        print(fq.strip())
+    except:
+        print(fn + ': error processing file', file=sys.stderr)
 
-fn = args.input
-strand = args.strand
+if __name__ == "__main__":
+    description = """
+    Extract 2D Fastq from Fast5 file.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--strand', action='store', type=int, default=0, help='Strand (2 for 2D)')
+    parser.add_argument('--fofn', help='File of Fast5 files')
+    parser.add_argument('input', action='store', help='Fast5 file')
+    args = parser.parse_args()
 
-try:
-    f = fast5_reader.File(fn)
-except OSError:
-    print(fn + ': could not open file', file=sys.stderr)
-    sys.exit(1)
-
-if not f.have_fastq(strand):
-    print(fn + ': no fastq for strand ' + str(strand), file=sys.stderr)
-    sys.exit(1)
-
-fq = f.get_fastq(strand)
-f.close()
-print(fq.strip())
+    if args.input:
+        process_file(args.input, args.strand)
+    if args.fofn:
+        fofn_f = open(args.fofn)
+        for line in fofn_f:
+            process_file(line.strip(), args.strand)
+        fofn_f.close()
