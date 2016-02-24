@@ -25,9 +25,9 @@ if __name__ == "__main__":
     Extract 2D Fastq from Fast5 file.
     """
     parser = argparse.ArgumentParser(description=description, epilog='')
-    parser.add_argument('--strand', action='store', type=int, default=0, help='Strand (2 for 2D)')
+    parser.add_argument('--strand', type=int, default=0, help='Strand (2 for 2D)')
     parser.add_argument('--fofn', help='File of Fast5 files')
-    parser.add_argument('input', action='store', help='Fast5 file')
+    parser.add_argument('input', nargs='?', help='Fast5 file')
     args = parser.parse_args()
 
     if args.input:
