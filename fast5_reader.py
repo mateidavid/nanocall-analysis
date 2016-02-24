@@ -60,7 +60,7 @@ class File(object):
                      '/Analyses/Hairpin_Split_000']:
             if path not in self.file:
                 continue
-            _d = dict(self.file[path])
+            _d = dict(self.file[path].attrs)
             if 'chimaera version' not in _d:
                 continue
             return _d['chimaera version'].decode()
