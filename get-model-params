@@ -34,7 +34,7 @@ def process_file(fn):
                     mp = 'c.p2.006.ont.model'
             l += [mp]
         else:
-            l += ['']
+            l += ['.']
         if f5.have_model(st):
             _, p = f5.get_model(st)
             l += [p[k] for k in key_order]

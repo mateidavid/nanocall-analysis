@@ -16,10 +16,14 @@ class File(object):
                     '/Analyses/Basecall_2D_000/BaseCalled_complement/Events'],
                     ['/Analyses/Basecall_1D_000/BaseCalled_template/Events',
                      '/Analyses/Basecall_1D_000/BaseCalled_complement/Events']]
-    model_path = ['/Analyses/Basecall_2D_000/BaseCalled_template/Model',
-                  '/Analyses/Basecall_2D_000/BaseCalled_complement/Model']
-    model_path_path = ['/Analyses/Basecall_2D_000/Summary/basecall_1d_template',
-                       '/Analyses/Basecall_2D_000/Summary/basecall_1d_complement']
+    model_path = [['/Analyses/Basecall_2D_000/BaseCalled_template/Model',
+                   '/Analyses/Basecall_2D_000/BaseCalled_complement/Model'],
+                   ['/Analyses/Basecall_1D_000/BaseCalled_template/Model',
+                    '/Analyses/Basecall_1D_000/BaseCalled_template/Model']]
+    model_path_path = [['/Analyses/Basecall_2D_000/Summary/basecall_1d_template',
+                        '/Analyses/Basecall_2D_000/Summary/basecall_1d_complement'],
+                        ['/Analyses/Basecall_1D_000/Summary/basecall_1d_template',
+                         '/Analyses/Basecall_1D_000/Summary/basecall_1d_complement']]
     alignment_path = '/Analyses/Basecall_2D_000/BaseCalled_2D/Alignment'
     fastq_path = [['/Analyses/Basecall_2D_000/BaseCalled_template/Fastq',
                    '/Analyses/Basecall_2D_000/BaseCalled_complement/Fastq',
@@ -121,13 +125,13 @@ class File(object):
         """
         Check that the Fast5 file has a model for the given strand.
         """
-        return File.model_path[strand] in self.file
+        return File.model_path[self.chimera_version >= '1.16'][strand] in self.file
 
     def get_model(self, strand):
         """
         Retrieve the model and its attributes for the given strand.
         """
-        _m = self.file[File.model_path[strand]]
+        _m = self.file[File.model_path[self.chimera_version >= '1.16'][strand]]
         _dt = np.dtype([t if 'S' not in t[1] else (t[0], t[1].replace('S', 'U'))
                         for t in _m.dtype.descr])
         return _m[()].astype(_dt), dict(_m.attrs)
@@ -136,13 +140,13 @@ class File(object):
         """
         Check that the Fast5 file has a model path for the given strand.
         """
-        return File.model_path_path[strand] in self.file and 'model_file' in dict(self.file[File.model_path_path[strand]].attrs)
+        return File.model_path_path[self.chimera_version >= '1.16'][strand] in self.file and 'model_file' in dict(self.file[File.model_path_path[self.chimera_version >= '1.16'][strand]].attrs)
 
     def get_model_path(self, strand):
         """
         Retrieve the model path for the given strand.
         """
-        _d = dict(self.file[File.model_path_path[strand]].attrs)
+        _d = dict(self.file[File.model_path_path[self.chimera_version >= '1.16'][strand]].attrs)
         return _d['model_file'].decode()
 
     def have_alignment(self):
