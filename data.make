@@ -12,6 +12,7 @@ ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 # fake targets
 .PHONY: all list clean cleanall help
 
+PYTHON3 = venv/bin/python3
 NANOCALL = ./nanocall
 BWA = ./bwa
 SAMTOOLS = ./samtools
@@ -30,7 +31,7 @@ DATASETS = $(call get_tag_list,dataset,*)
 REFERENCES = $(call remove_duplicates,$(foreach ds,${DATASETS},$(call get_reference,${ds})))
 DATASUBSETS = $(foreach ds,${DATASETS},${ds}.all $(foreach ss,$(call get_subsets,${ds}),${ds}.${ss}))
 
-TARGETS = nanocall.version bwa.version samtools.version \
+TARGETS = python3.version nanocall.version bwa.version samtools.version \
 	$(foreach ref,${REFERENCES},${ref}--reference ${ref}--bwa-index) \
 	$(foreach ds,${DATASETS},${ds}) \
 	$(foreach dss,${DATASUBSETS},${dss}.fofn)
@@ -54,6 +55,23 @@ print-%:
 
 help: ## This help.
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+#####################
+#
+# Python3 VirtualEnv
+#
+VIRTUALENV = virtualenv
+VIRTUALENV_PYTHON3 = python3
+VIRTUALENV_OPTS = --system-site-packages
+venv/bin/python3: venv/bin/activate
+venv/bin/activate: ${ROOT_DIR}/requirements.txt
+	test -d venv || ${VIRTUALENV} --python=${VIRTUALENV_PYTHON3} ${VIRTUALENV_OPTS} venv
+	venv/bin/pip3 install -Ur $<
+	touch venv/bin/activate
+python3.version: ${PYTHON3}
+	${PYTHON3} --version >$@
+#
+#####################
 
 #####################
 #
