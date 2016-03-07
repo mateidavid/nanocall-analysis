@@ -5,43 +5,42 @@ SHELL := /bin/bash
 # real path to this Makefile
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-NANOCALL_DIR = nanocall.dir
-LAST_DIR = last.dir
-BWA_DIR = bwa.dir
-
-SIMPSONLAB = /.mounts/labs/simpsonlab
-THREADS = 8
-
-LASTAL_PARAMS = -r1 -a1 -b1 -q1
-LASTAL_TAG = r1a1b1q1
-
 # do not leave failed files around
 .DELETE_ON_ERROR:
 # do not delete intermediate files
 #.SECONDARY:
 # fake targets
-.PHONY: all list clean cleanall
+.PHONY: all list clean cleanall help
 
-# format: <dataset> <reference>
-DATASETS_FILE = datasets.tab
-DATASETS = $(shell awk '{print $$1}' <${DATASETS_FILE})
-REFERENCES = $(shell awk '{print $$2}' <${DATASETS_FILE} | uniq)
+NANOCALL = ./nanocall
+BWA = ./bwa
+SAMTOOLS = ./samtools
 
-get_reference = $(shell awk '$$1=="${1}" {print $$2}' <${DATASETS_FILE})
-get_subsets = $(shell awk '$$1=="${1}" {print $$3}' <${DATASETS_FILE} | tr ',' ' ')
+TAGS = $(wildcard ${ROOT_DIR}/TAGS*)
+get_tag_list = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") {print $$3}')
+get_tag_value = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") && $$3=="${3}" {for (i=4;i<=NF;++i) $$(i-3)=$$i; NF-=3; print}' | head -n 1)
+get_reference = $(call get_tag_value,reference,${1},reference)
+get_subsets = $(call get_tag_list,subset,${1})
+get_dss_ds = $(shell echo "${1}" | cut -d. -f1)
+get_dss_ss = $(shell echo "${1}" | cut -d. -f2)
+remove_duplicates = $(shell echo "${1}" | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
+to_upper  = $(shell echo "${1}" | tr '[:lower:]' '[:upper:]')
 
-DATASUBSETS = $(foreach ds,${DATASETS},$(foreach ss,$(call get_subsets,${ds}),${ds}.${ss}))
+DATASETS = $(call get_tag_list,dataset,*)
+REFERENCES = $(call remove_duplicates,$(foreach ds,${DATASETS},$(call get_reference,${ds})))
+DATASUBSETS = $(foreach ds,${DATASETS},${ds}.all $(foreach ss,$(call get_subsets,${ds}),${ds}.${ss}))
 
-TARGETS = nanocall.version last.version bwa.version \
-	$(foreach ref,${REFERENCES},${ref}.fasta ${ref}.fasta.bwt ${ref}.fasta.lastdb.suf) \
-	${DATASETS} \
+TARGETS = nanocall.version bwa.version samtools.version \
+	$(foreach ref,${REFERENCES},${ref}--reference ${ref}--bwa-index) \
+	$(foreach ds,${DATASETS},${ds}) \
 	$(foreach dss,${DATASUBSETS},${dss}.fofn)
 
 all: ${TARGETS}
 
 list:
-	@echo "DATASETS=${DATASETS}"
 	@echo "REFERENCES=${REFERENCES}"
+	@echo "DATASETS=${DATASETS}"
+	@echo "DATASUBSETS=${DATASUBSETS}"
 	@echo "TARGETS=${TARGETS}"
 
 clean:
@@ -53,80 +52,218 @@ cleanall: clean
 print-%:
 	@echo '$*=$($*)'
 
-nanocall.version:
-	${NANOCALL_DIR}/nanocall --version | awk 'NR==2 {print $$3}'>$@
+help: ## This help.
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-last.version: ${LAST_DIR}/lastal
-	${LAST_DIR}/lastal --version | awk '{print $$2}' >$@
+#####################
+#
+# Nanocall
+#
+NANOCALL_DIR = nanocall.dir
+NANOCALL_BUILD_DIR = nanocall.dir/build
+NANOCALL_GIT = https://github.com/jts/nanocall.git
+NANOCALL_CMAKE_OPTS = -DBUILD_HDF5=1
+NANOCALL_MAKE_OPTS =
+#
+# download
+#
+${NANOCALL_DIR}/src/CMakeLists.txt:
+	git clone --recursive ${NANOCALL_GIT} ${NANOCALL_DIR}
+#
+# build (default)
+#
+${NANOCALL_BUILD_DIR}/nanocall/nanocall: ${NANOCALL_DIR}/src/CMakeLists.txt
+	mkdir -p ${NANOCALL_BUILD_DIR} && \
+	cd ${NANOCALL_BUILD_DIR} && \
+	cmake ../src ${NANOCALL_CMAKE_OPTS} && \
+	make ${NANOCALL_MAKE_OPTS}
+#
+# link
+#
+nanocall: ${NANOCALL_BUILD_DIR}/nanocall/nanocall
+	ln -sf $< $@
+#
+# version
+#
+nanocall.version: ${NANOCALL}
+	${NANOCALL} --version | awk 'NR==2 {print $$3}' >$@
+#
+#####################
 
-bwa.version: ${BWA_DIR}/bwa
-	${BWA_DIR}/bwa |& grep Version | awk '{print $$2}' >$@
+#####################
+#
+# BWA
+#
+BWA_DIR = bwa.dir
+BWA_GIT = https://github.com/lh3/bwa.git
+BWA_MAKE_OPTS = 
+#
+# download
+#
+${BWA_DIR}/Makefile:
+	git clone ${BWA_GIT} ${BWA_DIR}
+#
+# build
+#
+${BWA_DIR}/bwa: ${BWA_DIR}/Makefile
+	cd ${BWA_DIR} && \
+	make ${BWA_MAKE_OPTS}
+#
+# link
+#
+bwa: ${BWA_DIR}/bwa
+	ln -sf $< $@
+#
+# version
+#
+bwa.version: ${BWA}
+	[ -x ${BWA} ] && ${BWA} |& grep Version | awk '{print $$2}' >$@
+#
+#####################
 
-ecoli_k12.fasta:
-	ln -s ${SIMPSONLAB}/data/references/ecoli_k12.fasta
+#####################
+#
+# Samtools
+#
+#
+# download
+#
+samtools-1.3/Makefile:
+	wget https://github.com/samtools/samtools/releases/download/1.3/samtools-1.3.tar.bz2 -O- | \
+	tar -xjf -
+#
+# build
+#
+samtools-1.3/samtools: samtools-1.3/Makefile
+	cd samtools-1.3 && \
+	make
+#
+# link
+#
+samtools: samtools-1.3/samtools
+	ln -sf $< $@
+#
+# version
+#
+samtools.version: ${SAMTOOLS}
+	[ -x ${SAMTOOLS} ] && ${SAMTOOLS} --version >$@
+#
+#####################
 
-hs37d5.fasta:
-	ln -s ${SIMPSONLAB}/data/references/hs37d5.fa $@
-
-define make_lastdb
-${1}.lastdb.suf:
-	${LAST_DIR}/lastdb ${1}.lastdb ${1} 2>.$$(@:.suf=.log)
-${1}.lastdb.bck: ${1}.lastdb.log
-${1}.lastdb.des: ${1}.lastdb.log
-${1}.lastdb.prj: ${1}.lastdb.log
-${1}.lastdb.sds: ${1}.lastdb.log
-${1}.lastdb.ssp: ${1}.lastdb.log
-${1}.lastdb.tis: ${1}.lastdb.log
+#####################
+#
+# References
+#
+# Fasta & Fasta index
+#
+define make_reference
+.PHONY: ${1}--reference
+${1}--reference: ${1}.fa ${1}.fa.fai
+${1}.fa: ${2}
+	[ $$< ]
+	ln -sf $$< $$@
+${1}.fa.fai: ${1}.fa
+	if [ -r ${2}.fai ]; then \
+	  ln -sf ${2}.fai $$@; \
+	else \
+	  ${SAMTOOLS} faidx ${1}.fa; \
+	fi
 endef
-#$(foreach ref,${REFERENCES},$(eval $(call make_lastdb,${ref}.fasta)))
-
-define make_lastdb_index_local
-${1}.lastdb.suf:
-	for ext in bck des prj sds ssp suf tis; do ln -s ${2}.lastdb.$$$${ext} ${1}.lastdb.$$$${ext}; done
-${1}.lastdb.bck: ${1}.lastdb.suf
-${1}.lastdb.des: ${1}.lastdb.suf
-${1}.lastdb.prj: ${1}.lastdb.suf
-${1}.lastdb.sds: ${1}.lastdb.suf
-${1}.lastdb.ssp: ${1}.lastdb.suf
-${1}.lastdb.tis: ${1}.lastdb.suf
+$(foreach ref,${REFERENCES},\
+  $(eval $(call \
+    make_reference,\
+    ${ref},\
+    $(call get_tag_value,reference_fa,*,${ref}))))
+#
+# BWA index
+#
+BWA_INDEX_EXT := bwt pac ann amb sa
+define make_bwa_index
+.PHONY: ${1}--bwa-index
+${1}--bwa-index: ${1}--reference $(foreach ext,${BWA_INDEX_EXT},${1}.fa.${ext}) ${BWA}
+${1}.fa.bwt: ${2}
+	have_all=1; \
+	for ext in ${BWA_INDEX_EXT}; do \
+	  [ -r ${2}.$$$${ext} ] || { have_all=; break; }; \
+	done; \
+	if [ $$$${have_all} ]; then \
+	  for ext in ${BWA_INDEX_EXT}; do \
+	    ln -sf ${2}.$$$${ext} $$(@:.bwt=).$$$${ext}; \
+	  done; \
+	else \
+	  ${BWA} index ${1}.fa; \
+	fi
+${1}.fa.pac: ${1}.fa.bwt
+${1}.fa.ann: ${1}.fa.bwt
+${1}.fa.amb: ${1}.fa.bwt
+${1}.fa.sa : ${1}.fa.bwt
 endef
-$(eval $(call make_lastdb_index_local,ecoli_k12.fasta,${SIMPSONLAB}/data/references/ecoli_k12.fasta))
-$(eval $(call make_lastdb_index_local,hs37d5.fasta,${SIMPSONLAB}/data/references/hs37d5.fa))
-
-define make_bwa_index_local
-${1}.bwt:
-	for ext in bwt pac ann amb sa; do ln -s ${2}.$$$${ext} ${1}.$$$${ext}; done
-${1}.pac: ${1}.bwt
-${1}.ann: ${1}.bwt
-${1}.amb: ${1}.bwt
-${1}.sa: ${1}.bwt
+$(foreach ref,${REFERENCES},\
+  $(eval $(call \
+    make_bwa_index,\
+    ${ref},\
+    $(call get_tag_value,reference_fa,*,${ref}))))
+#
+# Last index
+#
+LAST_INDEX_EXT := bck des prj sds ssp suf tis
+define make_last_index
+.PHONY: ${1}--last-index
+${1}--last-index: $(foreach ext,${LAST_INDEX_EXT},${1}.fa.lastdb.${ext}) ${LASTDB}
+${1}.fa.lastdb.suf:
+	have_all=1; \
+	for ext in ${LAST_INDEX_EXT}; do \
+	  [ -r ${2}.$$$${ext} ] || { have_all=; break; }; \
+	done; \
+	if [ $$$${have_all} ]; then \
+	  for ext in ${LAST_INDEX_EXT}; do \
+	    ln -sf ${2}.$$$${ext} $$(@:.suf=).$$$${ext}; \
+	  done; \
+	else \
+	  ${LASTDB} ${1}.fa.lastdb ${1}.fa; \
+	fi
+${1}.fa.lastdb.bck: ${1}.fa.lastdb.suf
+${1}.fa.lastdb.des: ${1}.fa.lastdb.suf
+${1}.fa.lastdb.prj: ${1}.fa.lastdb.suf
+${1}.fa.lastdb.sds: ${1}.fa.lastdb.suf
+${1}.fa.lastdb.ssp: ${1}.fa.lastdb.suf
+${1}.fa.lastdb.tis: ${1}.fa.lastdb.suf
 endef
-$(eval $(call make_bwa_index_local,ecoli_k12.fasta,${SIMPSONLAB}/data/references/ecoli_k12.fasta))
-$(eval $(call make_bwa_index_local,hs37d5.fasta,${SIMPSONLAB}/data/references/hs37d5.fa))
+$(eval $(call make_last_index,human,${HUMAN_REFERENCE}.lastdb))
+$(eval $(call make_last_index,ecoli,${ECOLI_REFERENCE}.lastdb))
+#
+#####################
 
-ecoli_pcr_1:
-	ln -s ${SIMPSONLAB}/data/nanopore/ecoli/MAP006-PCR_downloads $@
-
-ecoli_pcr_2:
-	ln -s ${SIMPSONLAB}/data/nanopore/ecoli/MAP006-PCR-2 $@
-
-human_1:
-	ln -s ${SIMPSONLAB}/data/nanopore/oicr_minion/60525_12878 $@
-
+#####################
+#
+# Datasets
+#
+#
+# paths to fast5 files
+#
+define make_data_dir
+${1}:
+	[ -d ${2} ] && [ -r ${2} ] && \
+	ln -sf ${2} $$@
+endef
+$(foreach ds,${DATASETS},\
+  $(eval $(call make_data_dir,${ds},$(call get_tag_value,dataset,*,${ds}))))
+#
+# fofn: all
+#
 define make_all_fofn
 ${1}.all.fofn:
 	find ${1}/ -name '*.fast5' ! -type d | grep -v "\<raw\>" >$$@
 endef
 $(foreach ds,${DATASETS},$(eval $(call make_all_fofn,${ds})))
-
-define make_pass_100_fofn
-${1}.pass_100.fofn: ${1}.all.fofn
-	cat $$< | grep -v "\<fail\>" | head -n 100 >$$@
+#
+# fofn: subsets
+#
+define make_dss_fofn
+${1}.${2}.fofn: ${1}.all.fofn
+	cat $$< | eval "$(call get_tag_value,subset,${1},${2})" >$$@
 endef
-$(foreach ds,${DATASETS},$(eval $(call make_pass_100_fofn,${ds})))
-
-define make_pass_10_fofn
-${1}.pass_10.fofn: ${1}.all.fofn
-	cat $$< | grep -v "\<fail\>" | head -n 10 >$$@
-endef
-$(foreach ds,${DATASETS},$(eval $(call make_pass_10_fofn,${ds})))
+$(foreach dss,$(shell echo "${DATASUBSETS}" | tr ' ' '\n' | grep -v "\.all$$" | tr '\n' ' '),\
+  $(eval $(call make_dss_fofn,$(call get_dss_ds,${dss}),$(call get_dss_ss,${dss}))))
+#
+#####################

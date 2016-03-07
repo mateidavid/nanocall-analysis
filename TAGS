@@ -1,0 +1,18 @@
+reference ecoli_1     reference   ecoli
+reference ecoli_pcr_1 reference   ecoli
+reference human_1     reference   human
+reference human_pcr_1 reference   human
+
+subset *              pass_100     grep -v '\<raw\>' | head -n 100
+subset *              pass_1000    grep -v '\<raw\>' | head -n 1000
+subset *              pass_10000   grep -v '\<raw\>' | head -n 10000
+
+mapper *              bwa
+
+bwa_opts *            ont2d        -x ont2d
+
+nanocall_opts *       fast         --no-train
+nanocall_opts *       ss_1-stt_0   --train --single-strand-scaling --no-train-transitions
+nanocall_opts *       ss_1-stt_1   --train --single-strand-scaling --train-transitions
+nanocall_opts *       ss_2-stt_0   --train --double-strand-scaling --no-train-transitions
+nanocall_opts *       ss_2-stt_1   --train --double-strand-scaling --train-transitions

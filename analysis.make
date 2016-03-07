@@ -5,23 +5,6 @@ SHELL := /bin/bash
 # real path to this Makefile
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-NANOCALL_DIR = nanocall.dir
-NANOCALL_RELEASE_DIR = nanocall-release.dir
-LAST_DIR = last.dir
-BWA_DIR = bwa.dir
-
-SIMPSONLAB = /.mounts/labs/simpsonlab
-THREADS = 8
-
-NANOCALL_PARAMS = 
-NANOCALL_TAG = defaults
-
-LASTAL_PARAMS = -r1 -a1 -b1 -q1
-LASTAL_TAG = r1a1b1q1
-
-BWA_PARAMS = -t ${THREADS} -x ont2d
-BWA_TAG = ont2d
-
 # do not leave failed files around
 .DELETE_ON_ERROR:
 # do not delete intermediate files
@@ -29,34 +12,43 @@ BWA_TAG = ont2d
 # fake targets
 .PHONY: all list clean cleanall
 
-# format: <dataset> <reference>
-DATASETS_FILE = datasets.tab
-DATASETS = $(shell awk '{print $$1}' <${DATASETS_FILE})
-REFERENCES = $(shell awk '{print $$2}' <${DATASETS_FILE} | uniq)
+NANOCALL = ./nanocall
+BWA = ./bwa
+SAMTOOLS = ./samtools
 
-get_reference = $(shell awk '$$1=="$(shell echo "${1}" | cut -d. -f1)" {print $$2}' <${DATASETS_FILE})
-get_subsets = $(shell awk '$$1=="${1}" {print $$3}' <${DATASETS_FILE} | tr ',' ' ')
+TAGS = $(wildcard ${ROOT_DIR}/TAGS*)
+get_tag_list = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") {print $$3}')
+get_tag_value = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") && $$3=="${3}" {for (i=4;i<=NF;++i) $$(i-3)=$$i; NF-=3; print}' | head -n 1)
+get_ds_reference = $(call get_tag_value,reference,${1},reference)
+get_ds_subsets = $(call get_tag_list,subset,${1})
+get_ds_mappers = $(call get_tag_list,mapper,${1})
+get_dss_ds = $(shell echo "${1}" | cut -d. -f1)
+get_dss_ss = $(shell echo "${1}" | cut -d. -f2)
+get_dss_reference = $(call get_ds_reference,$(call get_dss_ds,${1}))
+get_dss_mappers = $(call get_ds_mappers,$(call get_dss_ds,${1}))
 
-to_upper  = $(shell echo "${1}" | tr '[:lower:]' '[:upper:]')
+remove_duplicates = $(shell echo "${1}" | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
+to_upper = $(shell echo "${1}" | tr '[:lower:]' '[:upper:]')
 
-DATASUBSETS = $(foreach ds,${DATASETS},$(foreach ss,$(call get_subsets,${ds}),${ds}.${ss}))
-#ALIGNERS = lastal bwa
-ALIGNERS = bwa
-ALIGNERS_TAG := $(foreach al,${ALIGNERS},${al}~${$(call to_upper,${al})_TAG})
+DATASETS = $(call get_tag_list,dataset,*)
+REFERENCES = $(call remove_duplicates,$(foreach ds,${DATASETS},$(call get_ds_reference,${ds})))
+DATASUBSETS = $(foreach ds,${DATASETS},${ds}.all $(foreach ss,$(call get_ds_subsets,${ds}),${ds}.${ss}))
 
-TARGETS = \
-	$(foreach dss,${DATASUBSETS},\
-	  $(foreach st,0 1 2,${dss}.metrichor.${st}.fq.gz) \
-	  ${dss}.metrichor.params.tsv \
-	  ${dss}.nanocall~${NANOCALL_TAG}.fa.gz \
-	  $(foreach al,${ALIGNERS_TAG},\
-	    $(foreach cs,metrichor nanocall~${NANOCALL_TAG},\
-	      ${dss}.${cs}.${al}.bam \
-	      ${dss}.${cs}.${al}.bam.summary.tsv) \
-	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.bam.summary.tsv \
-	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.error_table.tsv \
-	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.map_pos_table.tsv \
-	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.params_table.tsv))
+THREADS = 8
+
+# TARGETS = \
+# 	$(foreach dss,${DATASUBSETS},\
+# 	  $(foreach st,0 1 2,${dss}.metrichor.${st}.fq.gz) \
+# 	  ${dss}.metrichor.params.tsv \
+# 	  ${dss}.nanocall~${NANOCALL_TAG}.fa.gz \
+# 	  $(foreach al,${ALIGNERS_TAG},\
+# 	    $(foreach cs,metrichor nanocall~${NANOCALL_TAG},\
+# 	      ${dss}.${cs}.${al}.bam \
+# 	      ${dss}.${cs}.${al}.bam.summary.tsv) \
+# 	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.bam.summary.tsv \
+# 	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.error_table.tsv \
+# 	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.map_pos_table.tsv \
+# 	    ${dss}.metrichor+nanocall~${NANOCALL_TAG}.${al}.params_table.tsv))
 
 all: ${SPECIAL_TARGETS} ${TARGETS}
 
@@ -64,9 +56,8 @@ list:
 	@echo "DATASETS=${DATASETS}"
 	@echo "DATASUBSETS=${DATASUBSETS}"
 	@echo "REFERENCES=${REFERENCES}"
-	@echo "REFERENCES_PER_SUBSET=$(foreach dss,${DATASUBSETS},${dss}:$(call get_reference,${dss}))"
-	@echo "ALIGNERS=${ALIGNERS}"
-	@echo "ALIGNERS_TAG=${ALIGNERS_TAG}"
+	@echo "REFERENCES_PER_SUBSET=$(foreach dss,${DATASUBSETS},${dss}:$(call get_dss_reference,${dss}))"
+	@echo "MAPPER_PER_SUBSET=$(foreach dss,${DATASUBSETS},${dss}:$(call get_dss_mappers,${dss}))"
 	@echo "SPECIAL_TARGETS=${SPECIAL_TARGETS}"
 	@echo "TARGETS=${TARGETS}"
 
@@ -79,6 +70,8 @@ cleanall: clean
 print-%:
 	@echo '$*=$($*)'
 
+help: ## This help.
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 define extract_metrichor_fq
 ${1}.metrichor.${2}.fq.gz: ${1}.fofn
@@ -102,142 +95,303 @@ endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call get_metrichor_params,${dss})))
 
-define map_lastal_metrichor_fq
-${1}.metrichor.lastal~${LASTAL_TAG}.bam: $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) \
-	$(call get_reference,${1}).fasta.lastdb.tis
-	SGE_RREQ="-N $$@ -l h_tvmem=60G" :; \
+# define map_lastal_metrichor_fq
+# ${1}.metrichor.lastal~${LASTAL_TAG}.bam: $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) \
+# 	$(call get_reference,${1}).fasta.lastdb.tis
+# 	SGE_RREQ="-N $$@ -l h_tvmem=60G" :; \
+# 	{ \
+# 	  zcat $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) | \
+# 	  last.dir/lastal ${LASTAL_PARAMS} -Q1 $(call get_reference,${1}).fasta.lastdb - | \
+# 	  ${ROOT_DIR}/arq5x-nanopore-scripts/maf-convert.py sam - | \
+# 	  samtools view -Sh -T $(call get_reference,${1}).fasta - | \
+# 	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+# 	} 2>.$$@.log
+# endef
+# $(foreach dss,${DATASUBSETS},\
+# $(eval $(call map_lastal_metrichor_fq,${dss})))
+
+# define map_bwa_metrichor_fq
+# ${1}.metrichor.bwa~${BWA_TAG}.bam: $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) \
+# 	$(call get_reference,${1}).fasta.bwt
+# 	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G" :; \
+# 	{ \
+# 	  zcat $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) | \
+# 	  ${BWA_DIR}/bwa mem ${BWA_PARAMS} $(call get_reference,${1}).fasta - | \
+# 	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+# 	} 2>.$$@.log
+# endef
+#$(foreach dss,${DATASUBSETS},\
+#$(eval $(call map_bwa_metrichor_fq,${dss})))
+
+define run_bwa_unpaired
+# parameters:
+# 1 = destination bam file
+# 2 = input files
+# 3 = index prefix
+# 4 = bwa options
+# 5 = number of threads
+# 6 = RAM request
+${1}: ${2} ${3}.bwt
+	SGE_RREQ="-N $$@ -pe smp ${5} -l h_tvmem=${6}" :; \
 	{ \
-	  zcat $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) | \
-	  last.dir/lastal ${LASTAL_PARAMS} -Q1 $(call get_reference,${1}).fasta.lastdb - | \
-	  ${ROOT_DIR}/arq5x-nanopore-scripts/maf-convert.py sam - | \
-	  samtools view -Sh -T $(call get_reference,${1}).fasta - | \
-	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
-	} 2>.$$@.log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(eval $(call map_lastal_metrichor_fq,${dss})))
-
-define map_bwa_metrichor_fq
-${1}.metrichor.bwa~${BWA_TAG}.bam: $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) \
-	$(call get_reference,${1}).fasta.bwt
-	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G" :; \
-	{ \
-	  zcat $(foreach st,0 1 2,${1}.metrichor.${st}.fq.gz) | \
-	  ${BWA_DIR}/bwa mem ${BWA_PARAMS} $(call get_reference,${1}).fasta - | \
-	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
-	} 2>.$$@.log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(eval $(call map_bwa_metrichor_fq,${dss})))
-
-define get_nanocall_fa
-${1}.nanocall~${NANOCALL_TAG}.fa.gz: ${1}.fofn
-	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G -q !default" :; \
-	{\
-	  ${NANOCALL_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} --stats $$(@:.fa.gz=.stats) $$< | \
-	  sed 's/:\([01]\)$$$$/:nanocall:\1/' | \
-	  pigz >$$@; \
-	} 2>$$(@:.fa.gz=.log)
-${1}.nanocall~${NANOCALL_TAG}.stats: ${1}.nanocall~${NANOCALL_TAG}.fa.gz
-endef
-$(foreach dss,${DATASUBSETS},\
-$(eval $(call get_nanocall_fa,${dss})))
-
-define map_lastal_nanocall_fa
-${1}.nanocall~${NANOCALL_TAG}.lastal~${LASTAL_TAG}.bam: \
-	  ${1}.nanocall~${NANOCALL_TAG}.fa.gz $(call get_reference,${1}).fasta.lastdb.tis
-	SGE_RREQ="-N $$@ -l h_tvmem=60G" :; \
-	{ \
-	  zc ${1}.nanocall~${NANOCALL_TAG}.fa.gz | \
-	  last.dir/lastal ${LASTAL_PARAMS} -Q0 $(call get_reference,${1}).fasta.lastdb - | \
-	  ${ROOT_DIR}/arq5x-nanopore-scripts/maf-convert.py sam - | \
-	  samtools view -Sh -T $(call get_reference,${1}).fasta - | \
-	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
-	} 2>.$$@.log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(eval $(call map_lastal_nanocall_fa,${dss})))
-
-define map_bwa_nanocall_fa
-${1}.nanocall~${NANOCALL_TAG}.bwa~${BWA_TAG}.bam: \
-	  ${1}.nanocall~${NANOCALL_TAG}.fa.gz $(call get_reference,${1}).fasta.bwt
-	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G" :; \
-	{ \
-	  zc ${1}.nanocall~${NANOCALL_TAG}.fa.gz | \
-	  ${BWA_DIR}/bwa mem ${BWA_PARAMS} $(call get_reference,${1}).fasta - | \
-	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
-	} 2>.$$@.log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(eval $(call map_bwa_nanocall_fa,${dss})))
-
-define make_bam_summary
-${1}.bam.summary.tsv: ${1}.bam
+	  zcat -f ${2} | \
+	  ${BWA} mem -t ${5} ${4} ${3} - | \
+	  ${ROOT_DIR}/bam-filter-best-alignment; \
+	} >$$@ 2>.$$@.log
+${1}.summary.tsv: ${1}
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	${ROOT_DIR}/make-bam-summary $$< >$$@ 2>.$$@.log
 endef
-$(foreach dss,${DATASUBSETS},\
-$(foreach cs,metrichor nanocall~${NANOCALL_TAG},\
-$(foreach al,${ALIGNERS_TAG},\
-$(eval $(call make_bam_summary,${dss}.${cs}.${al})))))
 
-define make_error_table
-${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv: \
-	  ${1}.metrichor.${2}.bam.summary.tsv \
-	  ${1}.nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
+# parameters:
+# 1 = ds
+# 2 = ss
+# 3 = ref_fa
+# 4 = bwa_opts_tag
+run_bwa_metrichor_fq = $(call run_bwa_unpaired,${1}.${2}.metrichor.bwa~${4}.bam,$(foreach st,0 1 2,${1}.${2}.metrichor.${st}.fq.gz),${3},$(call get_tag_value,bwa_opts,${1},${4}),${THREADS},60G)
+
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(foreach ref,$(call get_ds_reference,${ds}),\
+$(foreach bwa_opts,$(call get_tag_list,bwa_opts,${ds}),\
+$(eval $(call run_bwa_metrichor_fq,${ds},${ss},${ref}.fa,${bwa_opts})))))))
+
+# parameters:
+# 1 = ds
+# 2 = ss
+# 3 = nanocall_opts_tag
+# 4 = ref_fa
+# 5 = bwa_opts_tag
+run_bwa_nanocall_fa = $(call run_bwa_unpaired,${1}.${2}.nanocall~${3}.bwa~${5}.bam,${1}.${2}.nanocall~${3}.fa.gz,${4},$(call get_tag_value,bwa_opts,${1},${5}),${THREADS},60G)
+
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(foreach ref,$(call get_ds_reference,${ds}),\
+$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
+$(foreach bwa_opts,$(call get_tag_list,bwa_opts,${ds}),\
+$(eval $(call run_bwa_nanocall_fa,${ds},${ss},${nanocall_opts},${ref}.fa,${bwa_opts}))))))))
+
+# define get_nanocall_fa
+# ${1}.nanocall~${NANOCALL_TAG}.fa.gz: ${1}.fofn
+# 	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G -q !default" :; \
+# 	{\
+# 	  ${NANOCALL_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} --stats $$(@:.fa.gz=.stats) $$< | \
+# 	  sed 's/:\([01]\)$$$$/:nanocall:\1/' | \
+# 	  pigz >$$@; \
+# 	} 2>$$(@:.fa.gz=.log)
+# ${1}.nanocall~${NANOCALL_TAG}.stats: ${1}.nanocall~${NANOCALL_TAG}.fa.gz
+# endef
+# $(foreach dss,${DATASUBSETS},\
+# $(eval $(call get_nanocall_fa,${dss})))
+
+define run_nanocall
+# parameters:
+# 1 = prefix of destination fa.gz file
+# 2 = input fofn
+# 3 = nanocall params
+# 4 = num threads
+# 5 = RAM request
+${1}.fa.gz: ${2}
+	SGE_RREQ="-N $$@ -pe smp ${4} -l h_tvmem=${5} -q !default" :; \
+	{ \
+	  ${NANOCALL} -t ${4} ${3} --stats ${1}.stats $$< | \
+	  sed 's/:\([01]\)$$$$/:nanocall:\1/' | \
+	  pigz; \
+	} >$$@ 2>${1}.log
+${1}.stats: ${1}.fa.gz
+endef
+
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
+$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_tag_value,nanocall_opts,${ds},${nanocall_opts}),${THREADS},10G))))))
+
+# define map_lastal_nanocall_fa
+# ${1}.nanocall~${NANOCALL_TAG}.lastal~${LASTAL_TAG}.bam: \
+# 	  ${1}.nanocall~${NANOCALL_TAG}.fa.gz $(call get_reference,${1}).fasta.lastdb.tis
+# 	SGE_RREQ="-N $$@ -l h_tvmem=60G" :; \
+# 	{ \
+# 	  zc ${1}.nanocall~${NANOCALL_TAG}.fa.gz | \
+# 	  last.dir/lastal ${LASTAL_PARAMS} -Q0 $(call get_reference,${1}).fasta.lastdb - | \
+# 	  ${ROOT_DIR}/arq5x-nanopore-scripts/maf-convert.py sam - | \
+# 	  samtools view -Sh -T $(call get_reference,${1}).fasta - | \
+# 	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+# 	} 2>.$$@.log
+# endef
+# $(foreach dss,${DATASUBSETS},\
+# $(eval $(call map_lastal_nanocall_fa,${dss})))
+
+# define map_bwa_nanocall_fa
+# ${1}.nanocall~${NANOCALL_TAG}.bwa~${BWA_TAG}.bam: \
+# 	  ${1}.nanocall~${NANOCALL_TAG}.fa.gz $(call get_reference,${1}).fasta.bwt
+# 	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G" :; \
+# 	{ \
+# 	  zc ${1}.nanocall~${NANOCALL_TAG}.fa.gz | \
+# 	  ${BWA_DIR}/bwa mem ${BWA_PARAMS} $(call get_reference,${1}).fasta - | \
+# 	  ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+# 	} 2>.$$@.log
+# endef
+# $(foreach dss,${DATASUBSETS},\
+# $(eval $(call map_bwa_nanocall_fa,${dss})))
+
+# define make_bam_summary
+# ${1}.bam.summary.tsv: ${1}.bam
+# 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+# 	${ROOT_DIR}/make-bam-summary $$< >$$@ 2>.$$@.log
+# endef
+# $(foreach dss,${DATASUBSETS},\
+# $(foreach cs,metrichor nanocall~${NANOCALL_TAG},\
+# $(foreach al,${ALIGNERS_TAG},\
+# $(eval $(call make_bam_summary,${dss}.${cs}.${al})))))
+
+# define make_error_table
+# ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv: \
+# 	  ${1}.metrichor.${2}.bam.summary.tsv \
+# 	  ${1}.nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
+# 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+# 	{ \
+# 	  diff -q \
+# 	    <(head -n1 ${1}.metrichor.${2}.bam.summary.tsv) \
+# 	    <(head -n1 ${1}.nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv) >&2 && \
+# 	  { \
+# 	    head -n1 $$<; \
+# 	    for f in $$^; do tail -n+2 $$$$f; done | sort; \
+# 	  }; \
+# 	} >$$@ 2>.$$@.log
+# ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.error_table.tsv: \
+# 	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
+# 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+# 	${ROOT_DIR}/tabulate-errors $$< >$$@ 2>.$$@.log
+# endef
+# $(foreach dss,${DATASUBSETS},\
+# $(foreach al,${ALIGNERS_TAG},\
+# $(eval $(call make_error_table,${dss},${al}))))
+
+# define make_map_pos_table
+# ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv: \
+# 	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
+# 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+# 	${ROOT_DIR}/tabulate-map-pos $$< >$$@ 2>.$$@.log
+# endef
+# $(foreach dss,${DATASUBSETS},\
+# $(foreach al,${ALIGNERS_TAG},\
+# $(eval $(call make_map_pos_table,${dss},${al}))))
+
+# define make_params_table
+# ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.params_table.tsv: \
+# 	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv \
+# 	  ${1}.metrichor.params.tsv \
+# 	  ${1}.nanocall~${NANOCALL_TAG}.stats
+# 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+# 	{ \
+# 	  join -t$$$$'\t' \
+# 	    <(head -n1 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv) \
+# 	    <(head -n1 ${1}.metrichor.params.tsv) | \
+# 	  join -t$$$$'\t' \
+# 	    - \
+# 	    <(head -n1 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9-); \
+# 	  join -t$$$$'\t' \
+# 	    <(tail -n+2 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv | sort -k1) \
+# 	    <(tail -n+2 ${1}.metrichor.params.tsv | sort -k1) | \
+# 	  join -t$$$$'\t' \
+# 	    - \
+# 	    <(tail -n+2 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9- | sort -k1); \
+# 	} >$$@ 2>.$$@.log
+# endef
+# $(foreach dss,${DATASUBSETS},\
+# $(foreach al,${ALIGNERS_TAG},\
+# $(eval $(call make_params_table,${dss},${al}))))
+
+define make_m_vs_n_tables
+${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv: \
+	  ${1}.metrichor.${3}.bam.summary.tsv \
+	  ${1}.nanocall~${2}.${3}.bam.summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
 	  diff -q \
-	    <(head -n1 ${1}.metrichor.${2}.bam.summary.tsv) \
-	    <(head -n1 ${1}.nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv) >&2 && \
+	    <(head -n1 ${1}.metrichor.${3}.bam.summary.tsv) \
+	    <(head -n1 ${1}.nanocall~${2}.${3}.bam.summary.tsv) >&2 && \
 	  { \
 	    head -n1 $$<; \
 	    for f in $$^; do tail -n+2 $$$$f; done | sort; \
 	  }; \
 	} >$$@ 2>.$$@.log
-${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.error_table.tsv: \
-	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
+${1}.metrichor+nanocall~${2}.${3}.error_table.tsv: \
+	  ${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	${ROOT_DIR}/tabulate-errors $$< >$$@ 2>.$$@.log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(foreach al,${ALIGNERS_TAG},\
-$(eval $(call make_error_table,${dss},${al}))))
-
-define make_map_pos_table
-${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv: \
-	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.bam.summary.tsv
+${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv: \
+	  ${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	${ROOT_DIR}/tabulate-map-pos $$< >$$@ 2>.$$@.log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(foreach al,${ALIGNERS_TAG},\
-$(eval $(call make_map_pos_table,${dss},${al}))))
-
-define make_params_table
-${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.params_table.tsv: \
-	  ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv \
+${1}.metrichor+nanocall~${2}.${3}.params_table.tsv: \
+	  ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv \
 	  ${1}.metrichor.params.tsv \
-	  ${1}.nanocall~${NANOCALL_TAG}.stats
+	  ${1}.nanocall~${2}.stats
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
 	  join -t$$$$'\t' \
-	    <(head -n1 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv) \
+	    <(head -n1 ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv) \
 	    <(head -n1 ${1}.metrichor.params.tsv) | \
 	  join -t$$$$'\t' \
 	    - \
-	    <(head -n1 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9-); \
+	    <(head -n1 ${1}.nanocall~${2}.stats | cut -f 2,9-); \
 	  join -t$$$$'\t' \
-	    <(tail -n+2 ${1}.metrichor+nanocall~${NANOCALL_TAG}.${2}.map_pos_table.tsv | sort -k1) \
+	    <(tail -n+2 ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv | sort -k1) \
 	    <(tail -n+2 ${1}.metrichor.params.tsv | sort -k1) | \
 	  join -t$$$$'\t' \
 	    - \
-	    <(tail -n+2 ${1}.nanocall~${NANOCALL_TAG}.stats | cut -f 2,9- | sort -k1); \
+	    <(tail -n+2 ${1}.nanocall~${2}.stats | cut -f 2,9- | sort -k1); \
 	} >$$@ 2>.$$@.log
 endef
+
 $(foreach dss,${DATASUBSETS},\
-$(foreach al,${ALIGNERS_TAG},\
-$(eval $(call make_params_table,${dss},${al}))))
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
+$(foreach mapper,$(call get_ds_mappers,${ds}),\
+$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${ds}),\
+$(eval $(call make_m_vs_n_tables,${dss},${nanocall_opts},${mapper}~${mapper_opts}))))))))
+
+define make_meta_targets_ds_ss
+.PHONY: ${1}.${2}.metrichor
+${1}.${2}.metrichor: \
+	${1}.${2}.metrichor.params.tsv \
+	$(foreach mapper,$(call get_ds_mappers,${1}),\
+	$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${1}),\
+	${1}.${2}.metrichor.${mapper}~${mapper_opts}.bam.summary.tsv))
+endef
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(eval $(call make_meta_targets_ds_ss,${ds},${ss})))))
+
+define make_meta_targets_ds_ss_no
+.PHONY: ${1}.${2}.nanocall~${3} \
+	${1}.${2}.metrichor+nanocall~${3}
+${1}.${2}.nanocall~${3}: \
+	${1}.${2}.nanocall~${3}.fa.gz \
+	${1}.${2}.nanocall~${3}.stats \
+	$(foreach mapper,$(call get_ds_mappers,${1}),\
+	$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${1}),\
+	${1}.${2}.nanocall~${3}.${mapper}~${mapper_opts}.bam.summary.tsv))
+${1}.${2}.metrichor+nanocall~${3}: \
+	$(foreach mapper,$(call get_ds_mappers,${1}),\
+	$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${1}),\
+	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.bam.summary.tsv \
+	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.error_table.tsv \
+	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.map_pos_table.tsv \
+	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.params_table.tsv))
+endef
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
+$(eval $(call make_meta_targets_ds_ss_no,${ds},${ss},${nanocall_opts}))))))
+
 
 define make_error_summary
 ${1}.summary.errors.tsv: ${1}.metrichor+nanocall~*.error_table.tsv

@@ -141,7 +141,46 @@ def plot_n_vs_m(fig_num, data, names, idx, idx_tag, vs_2d, subplot_kw={}, cb_top
                 fig.colorbar(artist, cax=cax, orientation='horizontal')
     return fig
 
-def load_data(fn):
+def plot_n_vs_m_params(fig_num, data, names, idx, idx_tag, subplot_kw={}, cb_top=False):
+    cm_list = ['Blues', 'Reds']
+    nm = matplotlib.colors.BoundaryNorm([0] + [10**i for i in range(5)], 256)
+    subplot_kw.update({
+        'aspect': 'equal'
+        })
+    fig, ax_a = plt.subplots(
+        len(data), 2, sharex=True, sharey=True, squeeze=False,
+        gridspec_kw={ 'hspace': .1, 'wspace': .1 },
+        subplot_kw=subplot_kw,
+        num=fig_num, figsize=(10, 5 * len(data)))
+    fig.suptitle('Nanocall vs Metrichor: ' + idx_tag)
+    fig.text(0.5, 0.04, 'Metrichor', ha='center', va='center')
+    fig.text(0.06, 0.5, 'Nanocall', ha='center', va='center', rotation='vertical')
+    for i in range(len(data)):
+        for st in range(2):
+            d = data[i]
+            ax = ax_a[i][st]
+            if i == 0:
+                ax.set_title('Strand ' + str(st))
+            if st == 0:
+                ax.set_ylabel(names[i])
+            ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+            ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+            ax.grid(which='both')
+            x_rt = 'm' + str(st)
+            y_rt = 'n' + str(st)
+            x = [e[x_rt + '_' + idx] for e in d
+                 if e['m2'] == 0 and (st == 0 or e['m1_model_name'] == e['n1_model_name'])]
+            y = [e[y_rt + '_' + idx] for e in d
+                 if e['m2'] == 0 and (st == 0 or e['m1_model_name'] == e['n1_model_name'])]
+            artist = ax.hexbin(x, y, cmap=cm_list[st], norm=nm, gridsize=50, mincnt=1,
+                               extent=(subplot_kw['xlim'][0], subplot_kw['xlim'][1],
+                                       subplot_kw['ylim'][0], subplot_kw['ylim'][1]))
+            if (cb_top and i == 0) or (not cb_top and i == len(data) - 1):
+                cax = add_subplot_axes(ax, [0.1, [0.15, 0.9][cb_top], 0.8, 0.05])
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def load_bam_summary(fn):
     _d = np.genfromtxt(fn, names=True, dtype=None)
     res = dict()
     for i in range(len(_d)):
@@ -162,7 +201,7 @@ def load_data(fn):
         res[rn][rt]['frac_identity'] = 1 - res[rn][rt]['errors'] / res[rn][rt]['read_len']
     return res
 
-def filter_data(data, ds_idx):
+def filter_bam_summary(data, ds_idx):
     """
     Keep only reads with Metrichor 2D basecalls. If any other set of basecalls
     aligns to a different location, assume those basecalls are wrong.
@@ -195,6 +234,10 @@ def filter_data(data, ds_idx):
         del data[rn]
     return cnt
 
+def load_params_table(fn):
+    _d = np.genfromtxt(fn, names=True, dtype=None, delimiter='\t')
+    return _d
+
 def write_counts(data, cnt, names):
     f = open('dataset-summary.txt', 'w')
     h = ['dataset', 'total_reads', 'm2_missing',
@@ -223,8 +266,8 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description=description, epilog='')
     parser.add_argument('--log-level', help='log level', default='info')
-    parser.add_argument('--name', type=str, action='append', help='Dataset names', default=[])
-    parser.add_argument('input', nargs='+', help='Input file')
+    parser.add_argument('-d', '--dataset', nargs=3, action='append', default=[], help='Dataset: name, bam summary file, params table file.')
+    parser.add_argument('--format', help='Matplotlib output format', default='png')
     args = parser.parse_args()
 
     numeric_log_level = getattr(logging, args.log_level.upper(), None)
@@ -236,27 +279,27 @@ if __name__ == "__main__":
     logger = logging.getLogger(os.path.basename(__file__))
     logger.info('args=' + str(args))
 
-    # read data
+    # read bam summaries
+    name = list()
     data = list()
     cnt = list()
-    for fn in args.input:
-        d = load_data(fn)
-        c = filter_data(d, len(cnt) + 1)
+    params_table = list()
+    for ds in args.dataset:
+        name.append(ds[0])
+        d = load_bam_summary(ds[1])
+        c = filter_bam_summary(d, len(cnt) + 1)
         data.append(d)
         cnt.append(c)
+        params_table.append(load_params_table(ds[2]))
 
-    # assign dataset names
-    for i in range(len(data)):
-        if len(args.name) < i + 1:
-            args.name.append('Dataset ' + str(i+1))
-    logger.info('Dataset names: ' + str(args.name))
+    logger.info('Dataset names: ' + str(name))
 
     # write counts
-    write_counts(data, cnt, args.name)
+    write_counts(data, cnt, name)
 
     # plot identity vs fraction aligned
-    plot_id_vs_aln(0, data, args.name)
-    plt.savefig('id_vs_aln.pdf', dpi=300)
+    plot_id_vs_aln(0, data, name)
+    plt.savefig('id_vs_aln.' + args.format, dpi=300)
 
     # plot nanocall vs metrichor read len
     subplot_kw = {
@@ -265,10 +308,10 @@ if __name__ == "__main__":
         'xticks': np.arange(0, 30001, 5000),
         'yticks': np.arange(0, 30001, 5000)
         }
-    plot_n_vs_m(1, data, args.name, 'read_len', 'Read Length', False, subplot_kw=subplot_kw, cb_top=True)
-    plt.savefig('n_vs_m.read_len.pdf', dpi=300)
-    plot_n_vs_m(2, data, args.name, 'read_len', 'Read Length', True, subplot_kw=subplot_kw, cb_top=True)
-    plt.savefig('n_vs_m2d.read_len.pdf', dpi=300)
+    plot_n_vs_m(1, data, name, 'read_len', 'Read Length', False, subplot_kw=subplot_kw, cb_top=True)
+    plt.savefig('n_vs_m.read_len.' + args.format, dpi=300)
+    plot_n_vs_m(2, data, name, 'read_len', 'Read Length', True, subplot_kw=subplot_kw, cb_top=True)
+    plt.savefig('n_vs_m2d.read_len.' + args.format, dpi=300)
 
     # plot nanocall vs metrichor fraction aligned
     subplot_kw = {
@@ -277,13 +320,33 @@ if __name__ == "__main__":
         'xticks': np.arange(0, 1.01, .2),
         'yticks': np.arange(0, 1.01, .2)
         }
-    plot_n_vs_m(3, data, args.name, 'frac_align', 'Fraction Aligned', False, subplot_kw=subplot_kw)
-    plt.savefig('n_vs_m.frac_aligned.pdf', dpi=300)
-    plot_n_vs_m(4, data, args.name, 'frac_align', 'Fraction Aligned', True, subplot_kw=subplot_kw)
-    plt.savefig('n_vs_m2d.frac_aligned.pdf', dpi=300)
+    plot_n_vs_m(3, data, name, 'frac_align', 'Fraction Aligned', False, subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m.frac_aligned.' + args.format, dpi=300)
+    plot_n_vs_m(4, data, name, 'frac_align', 'Fraction Aligned', True, subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m2d.frac_aligned.' + args.format, dpi=300)
 
     # plot nanocall vs metrichor identify
-    plot_n_vs_m(5, data, args.name, 'frac_identity', 'Identity', False, subplot_kw=subplot_kw)
-    plt.savefig('n_vs_m.identity.pdf', dpi=300)
-    plot_n_vs_m(6, data, args.name, 'frac_identity', 'Identity', True, subplot_kw=subplot_kw)
-    plt.savefig('n_vs_m2d.identity.pdf', dpi=300)
+    plot_n_vs_m(5, data, name, 'frac_identity', 'Identity', False, subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m.identity.' + args.format, dpi=300)
+    plot_n_vs_m(6, data, name, 'frac_identity', 'Identity', True, subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m2d.identity.' + args.format, dpi=300)
+
+    # plot n_vs_m scale
+    subplot_kw = {
+        'xlim': (0, 2),
+        'ylim': (0, 2),
+        'xticks': np.arange(0, 2.01, .5),
+        'yticks': np.arange(0, 2.01, .5)
+        }
+    plot_n_vs_m_params(7, params_table, name, 'scale', 'Scale', subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m.scale.' + args.format, dpi=300)
+    
+    # plot n_vs_m scale
+    subplot_kw = {
+        'xlim': (-10, 30),
+        'ylim': (-10, 30),
+        'xticks': np.arange(-10, 30.01, 10),
+        'yticks': np.arange(-10, 30.01, 10)
+        }
+    plot_n_vs_m_params(8, params_table, name, 'shift', 'Shift', subplot_kw=subplot_kw)
+    plt.savefig('n_vs_m.shift.' + args.format, dpi=300)
