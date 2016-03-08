@@ -16,7 +16,7 @@ PYTHON3 = env/bin/python3
 NANOCALL = ./nanocall
 BWA = ./bwa
 SAMTOOLS = ./samtools
-GZIP = $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; done)
+GZIP = $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; fi)
 
 TAGS = $(wildcard ${ROOT_DIR}/TAGS*)
 get_tag_list = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") {print $$3}')
