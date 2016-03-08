@@ -12,7 +12,7 @@ mapper *              bwa
 bwa_opts *            ont2d        -x ont2d
 
 nanocall_opts *       fast         --no-train
-nanocall_opts *       ss_1-stt_0   --train --single-strand-scaling --no-train-transitions
-nanocall_opts *       ss_1-stt_1   --train --single-strand-scaling --train-transitions
-nanocall_opts *       ss_2-stt_0   --train --double-strand-scaling --no-train-transitions
-nanocall_opts *       ss_2-stt_1   --train --double-strand-scaling --train-transitions
+nanocall_opts *       ss_1-stt_0   --single-strand-scaling --no-train-transitions
+nanocall_opts *       ss_1-stt_1   --single-strand-scaling
+nanocall_opts *       ss_2-stt_0   --double-strand-scaling --no-train-transitions
+nanocall_opts *       ss_2-stt_1   --double-strand-scaling
