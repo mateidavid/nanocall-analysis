@@ -12,9 +12,11 @@ ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 # fake targets
 .PHONY: all list clean cleanall
 
+PYTHON3 = env/bin/python3
 NANOCALL = ./nanocall
 BWA = ./bwa
 SAMTOOLS = ./samtools
+GZIP = $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; done)
 
 TAGS = $(wildcard ${ROOT_DIR}/TAGS*)
 get_tag_list = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") {print $$3}')
@@ -77,10 +79,10 @@ define extract_metrichor_fq
 ${1}.metrichor.${2}.fq.gz: ${1}.fofn
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
-	  ${ROOT_DIR}/get-fastq --strand ${2} --fofn $$< | \
+	  ${PYTHON3} ${ROOT_DIR}/get-fastq --strand ${2} --fofn $$< | \
 	  sed 's/_template /_0 /;s/_complement /_1 /;s/_2d /_2 /' | \
 	  sed 's/^@\([^_]*\)_[^ ]*_\([012]\) \(.*\)$$$$/@\1:\3:metrichor:\2/' | \
-	  pigz >$$@; \
+	  ${GZIP} >$$@; \
 	} 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
@@ -90,7 +92,7 @@ $(eval $(call extract_metrichor_fq,${dss},${st}))))
 define get_metrichor_params
 ${1}.metrichor.params.tsv: ${1}.fofn
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/get-model-params --fofn $$< >$$@ 2>.$$@.log
+	${PYTHON3} ${ROOT_DIR}/get-model-params --fofn $$< >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call get_metrichor_params,${dss})))
@@ -136,11 +138,11 @@ ${1}: ${2} ${3}.bwt
 	{ \
 	  zcat -f ${2} | \
 	  ${BWA} mem -t ${5} ${4} ${3} - | \
-	  ${ROOT_DIR}/bam-filter-best-alignment; \
+	  ${PYTHON3} ${ROOT_DIR}/bam-filter-best-alignment; \
 	} >$$@ 2>.$$@.log
 ${1}.summary.tsv: ${1}
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/make-bam-summary $$< >$$@ 2>.$$@.log
+	${PYTHON3} ${ROOT_DIR}/make-bam-summary $$< >$$@ 2>.$$@.log
 endef
 
 # parameters:
@@ -198,7 +200,7 @@ ${1}.fa.gz: ${2}
 	{ \
 	  ${NANOCALL} -t ${4} ${3} --stats ${1}.stats $$< | \
 	  sed 's/:\([01]\)$$$$/:nanocall:\1/' | \
-	  pigz; \
+	  ${GZIP}; \
 	} >$$@ 2>${1}.log
 ${1}.stats: ${1}.fa.gz
 endef
@@ -322,11 +324,11 @@ ${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv: \
 ${1}.metrichor+nanocall~${2}.${3}.error_table.tsv: \
 	  ${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/tabulate-errors $$< >$$@ 2>.$$@.log
+	${PYTHON3} ${ROOT_DIR}/tabulate-errors $$< >$$@ 2>.$$@.log
 ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv: \
 	  ${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/tabulate-map-pos $$< >$$@ 2>.$$@.log
+	${PYTHON3} ${ROOT_DIR}/tabulate-map-pos $$< >$$@ 2>.$$@.log
 ${1}.metrichor+nanocall~${2}.${3}.params_table.tsv: \
 	  ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv \
 	  ${1}.metrichor.params.tsv \
@@ -396,7 +398,7 @@ $(eval $(call make_meta_targets_ds_ss_no,${ds},${ss},${nanocall_opts}))))))
 define make_error_summary
 ${1}.summary.errors.tsv: ${1}.metrichor+nanocall~*.error_table.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/error-summary $$^ >$$@ 2>.$$@.log
+	${PYTHON3} ${ROOT_DIR}/error-summary $$^ >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call make_error_summary,${dss})))
@@ -404,7 +406,7 @@ $(eval $(call make_error_summary,${dss})))
 define make_map_pos_summary
 ${1}.summary.map_pos.tsv: ${1}.metrichor+nanocall~*.map_pos_table.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
+	${PYTHON3} ${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call make_map_pos_summary,${dss})))
