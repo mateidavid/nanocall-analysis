@@ -62,7 +62,7 @@ help: ## This help.
 #
 VIRTUALENV = virtualenv
 VIRTUALENV_PYTHON3 = python3
-VIRTUALENV_OPTS = --system-site-packages
+VIRTUALENV_OPTS = 
 venv/bin/python3: venv/bin/activate
 venv/bin/activate: ${ROOT_DIR}/requirements.txt
 	test -d venv || ${VIRTUALENV} --python=${VIRTUALENV_PYTHON3} ${VIRTUALENV_OPTS} venv
