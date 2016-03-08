@@ -12,7 +12,7 @@ ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 # fake targets
 .PHONY: all list clean cleanall
 
-PYTHON3 = env/bin/python3
+PYTHON3 = venv/bin/python3
 NANOCALL = ./nanocall
 BWA = ./bwa
 SAMTOOLS = ./samtools
