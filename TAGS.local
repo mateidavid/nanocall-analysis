@@ -1,7 +1,0 @@
-reference_fa * human     /home/matei/mnt/hpc/data/references/hs37d5.fa
-reference_fa * ecoli     /home/matei/mnt/hpc/data/references/ecoli_k12.fasta
-
-dataset * ecoli_1     /home/matei/mnt/hpc/data/nanopore/ecoli/MAP006-1_downloads
-dataset * ecoli_pcr_1 /home/matei/mnt/hpc/data/nanopore/ecoli/MAP006-PCR_downloads
-dataset * human_1     /home/matei/mnt/hpc/prod/archive/mion1/60525_12878
-dataset * human_pcr_1 /home/matei/mnt/hpc/prod/archive/mion1/75240_12878

@@ -1,0 +1,7 @@
+reference_fa *      human          /.mounts/labs/simpsonlab/data/references/hs37d5.fa
+reference_fa *      ecoli          /.mounts/labs/simpsonlab/data/references/ecoli_k12.fasta
+
+url       *         ecoli_1        /.mounts/labs/simpsonlab/users/jsimpson/projects/nanopore/2015.09.methylation.paper/paper.runs/data/MAP006-1/MAP006-1_downloads
+url       *         ecoli_pcr_1    /.mounts/labs/simpsonlab/users/jsimpson/projects/nanopore/2015.09.methylation.paper/paper.runs/data/MAP006-PCR-1/MAP006-PCR_downloads
+url       *         human_1        /.mounts/labs/prod/archive/mion1/60525_12878
+url       *         human_pcr_1    /.mounts/labs/prod/archive/mion1/79266_12878/downloads
