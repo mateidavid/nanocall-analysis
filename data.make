@@ -276,18 +276,32 @@ $(eval $(call make_last_index,ecoli,${ECOLI_REFERENCE}.lastdb))
 #
 # Datasets
 #
-#
-# paths to fast5 files
-#
-$(foreach ds,${DATASETS},\
-$(eval $(call get_url,$(call get_tag_value,url,*,${ds}),$(call get_tag_value,md5sum,*,${ds}),${DATA_DIR}/$(call get_tag_value,dirname,*,${ds}))))
-
+# parameters:
+# 1 = ds name
+# 2 = url
+# 3 = md5sum
+# 4 = dirname
 define make_data_dir
-${1}: ${2}
+${DATA_DIR}/${4}:
+	mkdir -p ${DATA_DIR}; \
+	if [ -d "${2}" ]; then \
+	  ln -sf "${2}" $$@; \
+	else \
+	  cache_url="${CACHE_DIR}/$$$$(basename "${2}")"; \
+	  if [ -r "${2}" ]; then \
+	    ln -sf "${2}" "$$$$cache_url"; \
+	  else \
+	    wget -L "${2}" -O "$$$$cache_url"; \
+	    test "$$$$(md5sum <"$$$$cache_url" | awk '{print $$$$1}')" = "${3}"; \
+	  fi; \
+	  tar -xf "$$$$cache_url" -C ${DATA_DIR}; \
+	  test -d $$@; \
+	fi
+${1}: ${DATA_DIR}/${4}
 	ln -sf "$$<" $$@
 endef
 $(foreach ds,${DATASETS},\
-$(eval $(call make_data_dir,${ds},${DATA_DIR}/$(call get_tag_value,dirname,*,${ds}))))
+$(eval $(call make_data_dir,${ds},$(call get_tag_value,url,*,${ds}),$(call get_tag_value,md5sum,*,${ds}),$(call get_tag_value,dirname,*,${ds}))))
 #
 # fofn: all
 #
