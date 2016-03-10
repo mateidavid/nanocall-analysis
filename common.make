@@ -16,6 +16,8 @@ NANOCALL = ${TOOLS_DIR}/bin/nanocall
 BWA = ${TOOLS_DIR}/bin/bwa
 SAMTOOLS = ${TOOLS_DIR}/bin/samtools
 
+GZIP := $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; fi)
+
 HUMAN_REFERENCE = ${DATA_DIR}/human.fa
 ECOLI_REFERENCE = ${DATA_DIR}/ecoli.fa
 
@@ -27,6 +29,7 @@ get_tag_value = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2
 
 get_ds_reference = $(call get_tag_value,reference,${1},reference)
 get_ds_subsets = $(call get_tag_list,subset,${1})
+get_ds_mappers = $(call get_tag_list,mapper,${1})
 
 get_dss_ds = $(shell echo "${1}" | cut -d. -f1)
 get_dss_ss = $(shell echo "${1}" | cut -d. -f2)

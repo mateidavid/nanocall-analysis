@@ -1,3 +1,8 @@
+.SUFFIXES:
+MAKEFLAGS += -r
+SHELL := /bin/bash
+
+# real path to this Makefile
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 include ${ROOT_DIR}/common.make
 
