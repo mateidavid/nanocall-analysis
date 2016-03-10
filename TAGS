@@ -1,18 +1,55 @@
-reference ecoli_1     reference   ecoli
-reference ecoli_pcr_1 reference   ecoli
-reference human_1     reference   human
-reference human_pcr_1 reference   human
+url       *         hdf5           https://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.16/src/hdf5-1.8.16.tar.bz2
+md5sum    *         hdf5           79c1593573ebddf734eee8d43ecfe483
+dirname   *         hdf5           hdf5-1.8.16
 
-subset *              pass_100     grep -v '\<raw\>' | head -n 100
-subset *              pass_1000    grep -v '\<raw\>' | head -n 1000
-subset *              pass_10000   grep -v '\<raw\>' | head -n 10000
+url       *         bwa            https://github.com/lh3/bwa/archive/0.7.12.tar.gz
+md5sum    *         bwa            e24a587baaad411d5da89516ad7a261a
+dirname   *         bwa            bwa-0.7.12
 
-mapper *              bwa
+url       *         samtools       https://github.com/samtools/samtools/releases/download/1.3/samtools-1.3.tar.bz2
+md5sum    *         samtools       7ab98b5c988e254d9bb5d796bf9337c9
+dirname   *         samtools       samtools-1.3
 
-bwa_opts *            ont2d        -x ont2d
+url       *         nanocall       https://github.com/jts/nanocall.git
 
-nanocall_opts *       fast         --no-train
-nanocall_opts *       ss_1-stt_0   --single-strand-scaling --no-train-transitions
-nanocall_opts *       ss_1-stt_1   --single-strand-scaling
-nanocall_opts *       ss_2-stt_0   --double-strand-scaling --no-train-transitions
-nanocall_opts *       ss_2-stt_1   --double-strand-scaling
+dataset   *         ecoli_1
+url       *         ecoli_1        ftp://ftp.era.ebi.ac.uk/vol1/ERA540/ERA540530/oxfordnanopore_native/MAP006-1.tar
+md5sum    *         ecoli_1        a6ee1795aa23b136a781fe8638c244f1
+dirname   *         ecoli_1        MAP006-1
+
+dataset   *         ecoli_pcr_1
+url       *         ecoli_pcr_1    ftp://ftp.era.ebi.ac.uk/vol1/ERA540/ERA540530/oxfordnanopore_native/MAP006-PCR-1.tar
+md5sum    *         ecoli_pcr_1    4a2426811464599c3e31e3a7714b8660
+dirname   *         ecoli_pcr_1    MAP006-PCR-1
+
+dataset   *         human_1
+url       *         human_1        ftp://ftp.era.ebi.ac.uk/NA12878.native.simpson.101515.tar.gz
+md5sum    *         human_1        6030467e74b9233e046097b14134716f
+dirname   *         human_1        NA12878.native.simpson.101515.fast5
+
+dataset   *         human_pcr_1
+url       *         human_pcr_1    ftp://ftp.era.ebi.ac.uk/NA12878.pcr.simpson.021616.tar.gz
+md5sum    *         human_pcr_1    dec80859720dd6a3cb28100c316a5687
+dirname   *         human_pcr_1    NA12878.pcr.simpson.021616.fast5
+
+reference ecoli_1     reference    ecoli
+reference ecoli_pcr_1 reference    ecoli
+reference human_1     reference    human
+reference human_pcr_1 reference    human
+
+reference_fa *      human          ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
+reference_fa *      human          ecoli_k12.fasta
+
+subset    *         pass_100       grep -v '\<raw\>' | head -n 100
+subset    *         pass_1000      grep -v '\<raw\>' | head -n 1000
+subset    *         pass_10000     grep -v '\<raw\>' | head -n 10000
+
+mapper    *         bwa
+
+bwa_opts  *         ont2d          -x ont2d
+
+nanocall_opts *     fast           --no-train
+nanocall_opts *     ss_1-stt_0     --single-strand-scaling --no-train-transitions
+nanocall_opts *     ss_1-stt_1     --single-strand-scaling
+nanocall_opts *     ss_2-stt_0     --double-strand-scaling --no-train-transitions
+nanocall_opts *     ss_2-stt_1     --double-strand-scaling

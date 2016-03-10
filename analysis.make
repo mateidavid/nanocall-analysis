@@ -1,40 +1,5 @@
-.SUFFIXES:
-MAKEFLAGS += -r
-SHELL := /bin/bash
-
-# real path to this Makefile
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-
-# do not leave failed files around
-.DELETE_ON_ERROR:
-# do not delete intermediate files
-#.SECONDARY:
-# fake targets
-.PHONY: all list clean cleanall
-
-PYTHON3 = venv/bin/python3
-NANOCALL = ./nanocall
-BWA = ./bwa
-SAMTOOLS = ./samtools
-GZIP = $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; fi)
-
-TAGS = $(wildcard ${ROOT_DIR}/TAGS*)
-get_tag_list = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") {print $$3}')
-get_tag_value = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") && $$3=="${3}" {for (i=4;i<=NF;++i) $$(i-3)=$$i; NF-=3; print}' | head -n 1)
-get_ds_reference = $(call get_tag_value,reference,${1},reference)
-get_ds_subsets = $(call get_tag_list,subset,${1})
-get_ds_mappers = $(call get_tag_list,mapper,${1})
-get_dss_ds = $(shell echo "${1}" | cut -d. -f1)
-get_dss_ss = $(shell echo "${1}" | cut -d. -f2)
-get_dss_reference = $(call get_ds_reference,$(call get_dss_ds,${1}))
-get_dss_mappers = $(call get_ds_mappers,$(call get_dss_ds,${1}))
-
-remove_duplicates = $(shell echo "${1}" | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
-to_upper = $(shell echo "${1}" | tr '[:lower:]' '[:upper:]')
-
-DATASETS = $(call get_tag_list,dataset,*)
-REFERENCES = $(call remove_duplicates,$(foreach ds,${DATASETS},$(call get_ds_reference,${ds})))
-DATASUBSETS = $(foreach ds,${DATASETS},${ds}.all $(foreach ss,$(call get_ds_subsets,${ds}),${ds}.${ss}))
+include ${ROOT_DIR}/common.make
 
 THREADS = 8
 
