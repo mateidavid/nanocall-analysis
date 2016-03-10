@@ -40,9 +40,9 @@ reference human_pcr_1 reference    human
 reference_fa *      human          ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
 reference_fa *      human          ecoli_k12.fasta
 
-subset    *         pass_100       grep -v '\<raw\>' | head -n 100
-subset    *         pass_1000      grep -v '\<raw\>' | head -n 1000
-subset    *         pass_10000     grep -v '\<raw\>' | head -n 10000
+subset    *         pass_100       grep /pass/ | head -n 100
+subset    *         pass_1000      grep /pass/ | head -n 1000
+subset    *         pass_10000     grep /pass/ | head -n 10000
 
 mapper    *         bwa
 
