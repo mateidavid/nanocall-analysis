@@ -284,8 +284,11 @@ $(eval $(call make_last_index,ecoli,${ECOLI_REFERENCE}.lastdb))
 define make_data_dir
 ${DATA_DIR}/${4}:
 	mkdir -p ${DATA_DIR}; \
+	first_component="${4}"; \
+	first_component=$$$${first_component%%/*}; \
 	if [ -d "${2}" ]; then \
-	  ln -sf "${2}" $$@; \
+	  test "$$$$(basename "${2}")" = "$$$$first_component"; \
+	  ln -sf "${2}" ${DATA_DIR}/$$$$first_component; \
 	else \
 	  cache_url="${CACHE_DIR}/$$$$(basename "${2}")"; \
 	  if [ -r "${2}" ]; then \
