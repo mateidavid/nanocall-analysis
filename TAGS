@@ -15,12 +15,12 @@ url       *         nanocall       https://github.com/jts/nanocall.git
 dataset   *         ecoli_1
 url       *         ecoli_1        ftp://ftp.era.ebi.ac.uk/vol1/ERA540/ERA540530/oxfordnanopore_native/MAP006-1.tar
 md5sum    *         ecoli_1        a6ee1795aa23b136a781fe8638c244f1
-dirname   *         ecoli_1        MAP006-1
+dirname   *         ecoli_1        MAP006-1/MAP006-1_downloads
 
 dataset   *         ecoli_pcr_1
 url       *         ecoli_pcr_1    ftp://ftp.era.ebi.ac.uk/vol1/ERA540/ERA540530/oxfordnanopore_native/MAP006-PCR-1.tar
 md5sum    *         ecoli_pcr_1    4a2426811464599c3e31e3a7714b8660
-dirname   *         ecoli_pcr_1    MAP006-PCR-1
+dirname   *         ecoli_pcr_1    MAP006-PCR-1/MAP006-PCR_downloads
 
 dataset   *         human_1
 url       *         human_1        ftp://ftp.era.ebi.ac.uk/NA12878.native.simpson.101515.tar.gz
