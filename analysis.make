@@ -120,7 +120,7 @@ endef
 # 2 = ss
 # 3 = ref_fa
 # 4 = bwa_opts_tag
-run_bwa_metrichor_fq = $(call run_bwa_unpaired,${1}.${2}.metrichor.bwa~${4}.bam,$(foreach st,0 1 2,${1}.${2}.metrichor.${st}.fq.gz),${3},$(call get_tag_value,bwa_opts,${1},${4}),${THREADS},60G)
+run_bwa_metrichor_fq = $(call run_bwa_unpaired,${1}.${2}.metrichor.bwa~${4}.bam,$(foreach st,0 1 2,${1}.${2}.metrichor.${st}.fq.gz),${3},$(call get_tag_value,bwa_opts,${1},${4}),${THREADS},14G)
 
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
@@ -135,7 +135,7 @@ $(eval $(call run_bwa_metrichor_fq,${ds},${ss},${ref}.fa,${bwa_opts})))))))
 # 3 = nanocall_opts_tag
 # 4 = ref_fa
 # 5 = bwa_opts_tag
-run_bwa_nanocall_fa = $(call run_bwa_unpaired,${1}.${2}.nanocall~${3}.bwa~${5}.bam,${1}.${2}.nanocall~${3}.fa.gz,${4},$(call get_tag_value,bwa_opts,${1},${5}),${THREADS},60G)
+run_bwa_nanocall_fa = $(call run_bwa_unpaired,${1}.${2}.nanocall~${3}.bwa~${5}.bam,${1}.${2}.nanocall~${3}.fa.gz,${4},$(call get_tag_value,bwa_opts,${1},${5}),${THREADS},14G)
 
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
@@ -383,7 +383,7 @@ $(eval $(call make_map_pos_summary,${dss})))
 
 define make_runtime_measure
 ${1}.nanocall~${NANOCALL_TAG}.timing.log: ${1}.fofn
-	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=60G -q !default" :; \
+	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=14G -q !default" :; \
 	${NANOCALL_RELEASE_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} $$< 2>$$@ >/dev/null
 ${1}.nanocall~${NANOCALL_TAG}.timing.stats: ${1}.nanocall~${NANOCALL_TAG}.timing.log
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
