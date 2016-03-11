@@ -179,7 +179,7 @@ $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
-$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_tag_value,nanocall_opts,${ds},${nanocall_opts}),${THREADS},10G))))))
+$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_tag_value,nanocall_opts,${ds},${nanocall_opts}),${THREADS},15G))))))
 
 # define map_lastal_nanocall_fa
 # ${1}.nanocall~${NANOCALL_TAG}.lastal~${LASTAL_TAG}.bam: \
@@ -335,6 +335,12 @@ ${1}.${2}.metrichor: \
 	$(foreach mapper,$(call get_ds_mappers,${1}),\
 	$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${1}),\
 	${1}.${2}.metrichor.${mapper}~${mapper_opts}.bam.summary.tsv))
+${1}.${2}.nanocall: \
+	$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${1}),\
+	${1}.${2}.nanocall~${nanocall_opts})
+${1}.${2}.metrichor+nanocall: \
+	$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${1}),\
+	${1}.${2}.metrichor+nanocall~${nanocall_opts})
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
@@ -368,7 +374,7 @@ $(eval $(call make_meta_targets_ds_ss_no,${ds},${ss},${nanocall_opts}))))))
 define make_error_summary
 ${1}.summary.errors.tsv: ${1}.metrichor+nanocall~*.error_table.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${PYTHON3} ${ROOT_DIR}/error-summary $$^ >$$@ 2>.$$@.log
+	${ROOT_DIR}/error-summary $$^ >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call make_error_summary,${dss})))
@@ -376,7 +382,7 @@ $(eval $(call make_error_summary,${dss})))
 define make_map_pos_summary
 ${1}.summary.map_pos.tsv: ${1}.metrichor+nanocall~*.map_pos_table.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${PYTHON3} ${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
+	${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call make_map_pos_summary,${dss})))
