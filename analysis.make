@@ -6,7 +6,7 @@ SHELL := /bin/bash
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 include ${ROOT_DIR}/common.make
 
-THREADS = 8
+THREADS = 14
 
 # TARGETS = \
 # 	$(foreach dss,${DATASUBSETS},\
@@ -166,12 +166,19 @@ define run_nanocall
 # 4 = num threads
 # 5 = RAM request
 ${1}.fa.gz: ${2}
-	SGE_RREQ="-N $$@ -pe smp ${4} -l h_tvmem=${5} -q !default" :; \
+	SGE_RREQ="-N $$@ -pe smp ${4} -l h_tvmem=${5} -l h_rt=48:0:0 -l s_rt=48:0:0 -q !default" :; \
 	{ \
-	  ${NANOCALL} -t ${4} ${3} --stats ${1}.stats $$< | \
+	  dir=$$$$(mktemp -d); \
+	  cd $$$$dir; \
+	  rsync -a ${PWD}/${2} ./; \
+	  rsync -a --files-from=${2} ${PWD}/ ./; \
+	  ${NANOCALL} -t ${4} ${3} --stats ${1}.stats ${2} 2>${PWD}/${1}.log | \
 	  sed 's/:\([01]\)$$$$/:nanocall:\1/' | \
-	  ${GZIP}; \
-	} >$$@ 2>${1}.log
+	  ${GZIP} >$$@; \
+	  rsync -a $$@ ${1}.stats ${PWD}/; \
+	  cd ${PWD}; \
+	  rm -rf $$$$dir; \
+	} 2>.$$@.log
 ${1}.stats: ${1}.fa.gz
 endef
 
@@ -179,7 +186,7 @@ $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
-$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_tag_value,nanocall_opts,${ds},${nanocall_opts}),${THREADS},15G))))))
+$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_tag_value,nanocall_opts,${ds},${nanocall_opts}),$(call get_run_threads,${nanocall_opts}),15G))))))
 
 # define map_lastal_nanocall_fa
 # ${1}.nanocall~${NANOCALL_TAG}.lastal~${LASTAL_TAG}.bam: \
@@ -335,12 +342,12 @@ ${1}.${2}.metrichor: \
 	$(foreach mapper,$(call get_ds_mappers,${1}),\
 	$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${1}),\
 	${1}.${2}.metrichor.${mapper}~${mapper_opts}.bam.summary.tsv))
-${1}.${2}.nanocall: \
-	$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${1}),\
-	${1}.${2}.nanocall~${nanocall_opts})
-${1}.${2}.metrichor+nanocall: \
-	$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${1}),\
-	${1}.${2}.metrichor+nanocall~${nanocall_opts})
+#${1}.${2}.nanocall: \
+#	$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${1}),\
+#	${1}.${2}.nanocall~${nanocall_opts})
+#${1}.${2}.metrichor+nanocall: \
+#	$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${1}),\
+#	${1}.${2}.metrichor+nanocall~${nanocall_opts})
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
@@ -370,30 +377,42 @@ $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
 $(eval $(call make_meta_targets_ds_ss_no,${ds},${ss},${nanocall_opts}))))))
 
-
-define make_error_summary
-${1}.summary.errors.tsv: ${1}.metrichor+nanocall~*.error_table.tsv
-	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/error-summary $$^ >$$@ 2>.$$@.log
+#
+# option packs
+#
+define make_meta_targets_opt_pack
+${1}.${2}.nanocall--${3}: \
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${3}),\
+	${1}.${2}.nanocall~${nanocall_opts})
+${1}.${2}.metrichor+nanocall--${3}: \
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${3}),\
+	${1}.${2}.metrichor+nanocall~${nanocall_opts})
 endef
 $(foreach dss,${DATASUBSETS},\
-$(eval $(call make_error_summary,${dss})))
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(foreach opt_pack,$(call get_tag_list,nanocall_opt_pack,*),\
+$(eval $(call make_meta_targets_opt_pack,${ds},${ss},${opt_pack}))))))
 
-define make_map_pos_summary
-${1}.summary.map_pos.tsv: ${1}.metrichor+nanocall~*.map_pos_table.tsv
+#
+# option pack summaries
+#
+define make_option_pack_summaries
+${1}.summary.${2}.errors.tsv: ${1}.metrichor+nanocall--${2}
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
+	${ROOT_DIR}/error-summary \
+	  $(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${2}),${1}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.error_table.tsv) >$$@ 2>.$$@.log
+${1}.summary.${2}.map_pos.tsv: ${1}.metrichor+nanocall--${2}
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	${ROOT_DIR}/map-pos-summary \
+	  $(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${2}),${1}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.map_pos_table.tsv) >$$@ 2>.$$@.log
+${1}.summary.${2}.runtime.tsv: ${1}.metrichor+nanocall--${2} ${1}.metrichor.2.fq.gz
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	INPUT_SIZE=$$$$(zcat -f ${1}.metrichor.2.fq.gz | paste - - | paste - - | cut -f 2 | wc -c) \
+	${ROOT_DIR}/runtime-summary \
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${2}),${1}.nanocall~${nanocall_opts}.log) \
+	>$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
-$(eval $(call make_map_pos_summary,${dss})))
-
-define make_runtime_measure
-${1}.nanocall~${NANOCALL_TAG}.timing.log: ${1}.fofn
-	SGE_RREQ="-N $$@ -pe smp ${THREADS} -l h_tvmem=14G -q !default" :; \
-	${NANOCALL_RELEASE_DIR}/nanocall -t ${THREADS} ${NANOCALL_PARAMS} $$< 2>$$@ >/dev/null
-${1}.nanocall~${NANOCALL_TAG}.timing.stats: ${1}.nanocall~${NANOCALL_TAG}.timing.log
-	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/extract-nanocall-runtimes <$$< >$$@
-endef
-$(foreach dss,${DATASUBSETS},\
-$(eval $(call make_runtime_measure,${dss})))
+$(foreach opt_pack,$(call get_tag_list,nanocall_opt_pack,*),\
+$(eval $(call make_option_pack_summaries,${dss},${opt_pack}))))

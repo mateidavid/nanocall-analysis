@@ -36,6 +36,8 @@ get_dss_ss = $(shell echo "${1}" | cut -d. -f2)
 get_dss_reference = $(call get_ds_reference,$(call get_dss_ds,${1}))
 get_dss_mappers = $(call get_ds_mappers,$(call get_dss_ds,${1}))
 
+get_run_threads = $(shell num="$(call get_tag_value,num_threads,*,${1})"; echo "$${num:-${THREADS}}")
+
 remove_duplicates = $(shell echo "${1}" | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
 to_upper  = $(shell echo "${1}" | tr '[:lower:]' '[:upper:]')
 
