@@ -381,38 +381,46 @@ $(eval $(call make_meta_targets_ds_ss_no,${ds},${ss},${nanocall_opts}))))))
 # option packs
 #
 define make_meta_targets_opt_pack
+.PHONY: ${1}.${2}.nanocall--${3} \
+	${1}.${2}.metrichor+nanocall--${3}
 ${1}.${2}.nanocall--${3}: \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${3}),\
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
 	${1}.${2}.nanocall~${nanocall_opts})
 ${1}.${2}.metrichor+nanocall--${3}: \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${3}),\
-	${1}.${2}.metrichor+nanocall~${nanocall_opts})
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	${1}.${2}.metrichor+nanocall~${nanocall_opts}) \
+	${1}.${2}.summary.${3}.map_pos.tsv \
+	${1}.${2}.summary.${3}.errors.tsv \
+	${1}.${2}.summary.${3}.runtime.tsv \
+	${1}.${2}.summary.${3}.tex
+${1}.${2}.summary.${3}.errors.tsv: \
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	${1}.${2}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.error_table.tsv)
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	${ROOT_DIR}/error-summary $$^ >$$@ 2>.$$@.log
+${1}.${2}.summary.${3}.map_pos.tsv: \
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	${1}.${2}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.map_pos_table.tsv)
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
+${1}.${2}.summary.${3}.runtime.tsv: ${1}.${2}.metrichor.2.fq.gz \
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	${1}.${2}.nanocall~${nanocall_opts}.log)
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	INPUT_SIZE=$$$$(zcat -f ${1}.${2}.metrichor.2.fq.gz | paste - - | paste - - | cut -f 2 | wc -c) \
+	${ROOT_DIR}/runtime-summary \
+	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	${1}.${2}.nanocall~${nanocall_opts}.log) \
+	>$$@ 2>.$$@.log
+${1}.${2}.summary.${3}.tex: \
+	${1}.${2}.summary.${3}.map_pos.tsv \
+	${1}.${2}.summary.${3}.errors.tsv \
+	${1}.${2}.summary.${3}.runtime.tsv
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	${ROOT_DIR}/tex-summary-main $$^ >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
-$(foreach opt_pack,$(call get_tag_list,nanocall_opt_pack,*),\
+$(foreach opt_pack,$(call get_tag_list,nanocall_opt_pack,${ds}),\
 $(eval $(call make_meta_targets_opt_pack,${ds},${ss},${opt_pack}))))))
-
-#
-# option pack summaries
-#
-define make_option_pack_summaries
-${1}.summary.${2}.errors.tsv: ${1}.metrichor+nanocall--${2}
-	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/error-summary \
-	  $(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${2}),${1}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.error_table.tsv) >$$@ 2>.$$@.log
-${1}.summary.${2}.map_pos.tsv: ${1}.metrichor+nanocall--${2}
-	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/map-pos-summary \
-	  $(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${2}),${1}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.map_pos_table.tsv) >$$@ 2>.$$@.log
-${1}.summary.${2}.runtime.tsv: ${1}.metrichor+nanocall--${2} ${1}.metrichor.2.fq.gz
-	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	INPUT_SIZE=$$$$(zcat -f ${1}.metrichor.2.fq.gz | paste - - | paste - - | cut -f 2 | wc -c) \
-	${ROOT_DIR}/runtime-summary \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,*,${2}),${1}.nanocall~${nanocall_opts}.log) \
-	>$$@ 2>.$$@.log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(foreach opt_pack,$(call get_tag_list,nanocall_opt_pack,*),\
-$(eval $(call make_option_pack_summaries,${dss},${opt_pack}))))

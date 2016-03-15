@@ -13,7 +13,9 @@ printab() {
     printf "\n"
 }
 
-printab "scaling" "basecalling"
+printab "training_wall" "basecalling_wall" "total_wall" \
+    "training_cpu" "basecalling_cpu" "total_cpu" \
+    "training_load" "basecalling_load" "total_load"
 
 a=($(cat "$@" |
         tr '\r' '\n' |
@@ -28,12 +30,33 @@ if [ ${#a[@]} -eq 2 ]; then
     t=(0 ${a[1]})
 elif [ ${#a[@]} -eq 4 ]; then
     if [ ${a[0]} = ${a[2]} ]; then
-        t=(${a[1]} ${a[3]})
+        t=(${a[1]} ${a[3]} $(( ${a[1]} + ${a[3]} )))
     else
-        t=(0 ${a[3]})
+        t=(0 ${a[3]} ${a[3]})
     fi
 else
-    t=('?' '?')
+    t=('.' '.' '.')
 fi
+
+# extract user cpu time, if available
+for key in training_cpu_time basecalling_cpu_time; do
+    v=$(zcat -f "$1" | grep $key | awk -F= '{print int($NF)}')
+    [ "$v" ] || v=.
+    t+=($v)
+done
+if [ "${t[3]}" != "." ] && [ "${t[4]}" != "." ]; then
+    t+=($((${t[3]} + ${t[4]})))
+else
+    t+=(".")
+fi
+
+for i in 0 1 2; do
+    ip3=$(($i + 3))
+    if [ "${t[$ip3]}" != "." ]; then
+        t+=($(echo "scale=2; ${t[$ip3]} / ${t[$i]}" | bc))
+    else
+        t+=(".")
+    fi
+done
 
 printab "${t[@]}"

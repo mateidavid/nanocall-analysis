@@ -8,9 +8,13 @@ for f in "$@"; do
     aln=${tag%%~*}
     tag=${tag#*~}
     aln_tag=${tag%%.*}
+    num_reads=$(tail -n+2 ${f} | wc -l)
+    num_reads_m_mis=$(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($3==0 && $4==0)' | wc -l)
+    num_reads_n_mis=$(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($5==0 && $6==0)' | wc -l)
+    num_reads_both_mis=$(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($3==0 && $4==0) && !($5==0 && $6==0)' | wc -l)
     printf "%s\t%s\t%s\t%s\t%s\t%s\n" ${nanocall_tag} ${aln} ${aln_tag} \
-        $(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($3==0 && $4==0)' | wc -l) \
-        $(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($5==0 && $6==0)' | wc -l) \
-        $(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($3==0 && $4==0) && !($5==0 && $6==0)' | wc -l)
+        $(echo "scale=3; $num_reads_m_mis / $num_reads" | bc) \
+        $(echo "scale=3; $num_reads_n_mis / $num_reads" | bc) \
+        $(echo "scale=3; $num_reads_both_mis / $num_reads" | bc)
 done |
 sort -k 5n

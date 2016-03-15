@@ -341,7 +341,7 @@ if __name__ == "__main__":
     plot_n_vs_m_params(7, params_table, name, 'scale', 'Scale', subplot_kw=subplot_kw)
     plt.savefig('n_vs_m.scale.' + args.format, dpi=300)
     
-    # plot n_vs_m scale
+    # plot n_vs_m shift
     subplot_kw = {
         'xlim': (-10, 30),
         'ylim': (-10, 30),

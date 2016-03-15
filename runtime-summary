@@ -10,16 +10,29 @@ DEFAULT_NUM_THREADS=14
 
 source ${_prog_dir}/printab.sh
 
-printab "nanocall_tag" "threads" "scaling_bp_per_core_hour" "basecalling_bp_per_core_hour"
+printab "nanocall_tag" "threads" "training_kbp_per_ch" "basecalling_kbp_per_ch" "total_kbp_per_ch"
 for f in "$@"; do
     nanocall_tag=${f#*nanocall~}
     nanocall_tag=${nanocall_tag%%.*}
     num_threads=$(head -n 100 <"$f" | grep num_threads | sed 's/^.*=//')
     num_threads=${num_threads:-$DEFAULT_NUM_THREADS}
     rt_a=($(${ROOT_DIR}/extract-nanocall-runtimes "$f" | tail -n 1))
+    # use user cpu times if available
+    if [ "${rt_a[4]}" != "." ]; then
+        start_idx=3
+        effective_num_threads=1
+    else
+        start_idx=0
+        effective_num_threads=$num_threads
+    fi            
     rt_per_core_hour_a=()
-    for rt in "${rt_a[@]}"; do
-        rt_per_core_hour_a+=($(echo "(${INPUT_SIZE} * 3600) / (${num_threads} * ${rt})"| bc))
+    for i in 0 1 2; do
+        rt=${rt_a[$(($start_idx + $i))]}
+        if [ "$rt" -gt 0 ]; then
+            rt_per_core_hour_a+=($(echo "(${INPUT_SIZE} * 3600) / (${effective_num_threads} * ${rt} * 2^10)"| bc))
+        else
+            rt_per_core_hour_a+=(".")
+        fi
     done
     printab "$nanocall_tag" "$num_threads" "${rt_per_core_hour_a[@]]}"
 done
