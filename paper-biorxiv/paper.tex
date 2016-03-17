@@ -1,0 +1,368 @@
+\documentclass{bioinfo}
+\copyrightyear{2015} \pubyear{NA}
+
+\access{Advance Access Publication Date: Day Month Year}
+\appnotes{Manuscript Category}
+
+\begin{document}
+
+\newcommand{\pstay}{\ensuremath{p_\mathrm{stay}}}
+\newcommand{\pskip}{\ensuremath{p_\mathrm{skip}}}
+\newcommand{\pskipone}{\ensuremath{p_\mathrm{skip1}}}
+\newcommand{\pstep}{\ensuremath{p_\mathrm{step}}}
+\newcommand{\suffix}{\ensuremath{\mathrm{suffix}}}
+\newcommand{\prefix}{\ensuremath{\mathrm{prefix}}}
+
+\firstpage{1}
+
+\subtitle{Subject Section}
+
+\title[Nanocall]{Nanocall: An Alternative Oxford Nanopore Basecaller}
+\author[David \textit{et~al}.]{Matei David\,$^{\text{\sfb 1,}*}$, Jonathan Dursi\,$^{\text{\sfb 1}}$, Delia Yao\,$^{\text{\sfb 1}}$, Paul Boutros\,$^{\text{\sfb 1,2}}$ and Jared Simpson\,$^{\text{\sfb 1,3,}*}$}
+\address{$^{\text{\sf 1}}$Ontario Institute for Cancer Research, Toronto, M5G 0A3, Canada. \\
+$^{\text{\sf 2}}$Department of Pharmacology and Toxicology, University of Toronto, Toronto, M5S 1A8, Canada. \\
+$^{\text{\sf 3}}$Department of Computer Science, University of Toronto, Toronto, M5S 2E4, Canada.}
+
+\corresp{$^\ast$To whom correspondence should be addressed.}
+
+\history{Received on XXXXX; revised on XXXXX; accepted on XXXXX}
+
+\editor{Associate Editor: XXXXXXX}
+
+\abstract{\textbf{Motivation:}
+The Oxford Nanopore MinION sequencer is highly portable, comparable in size to a cell phone. The small form factor makes the MinION particularly suitable for sequencing ``in the bush''. However, currently the MinION relies on the cloud computing platform Metrichor (\href{metrichor.com}{metrichor.com}) for translating technical, locally generated sequencing data into basecalls.\\
+\textbf{Results:}
+In this paper we introduce Nanocall, a basecaller for Oxford Nanopore sequencing data. Nanocall does not seek to replace Metrichor, but instead, it aims to provide an alternative to Metrichor. In particular, Nanocall does not currently integrate the sequencing of the template and complement strands of the same DNA molecule into a single read (i.e., in Metrichor terminology, it produces ``1D'' but not ``2D'' reads). To estimate performace, we ran Nanocall on 4 datasets: \emph{E.coli} and Human, PCR-treated and native samples. Nanocall reads have \sim~68\% identity, directly comparable to Metrichor 1D reads, but smaller than \sim~87\% for Metrichor 2D reads. Nanocall took [TODO] $\sim$80hr of single-core CPU time per 100Mbp of 2D data, which is a typical yield for a 24hr sequencing experiment. Nanocall supports multi-threading, so on a 4-core CPU, Nanocall would run in time comparable to the sequencer itself.\\
+\textbf{Availability:}
+Nanocall is available at \href{https://github.com/mateidavid/nanocall}{https://github.com/mateidavid/nanocall}, released under the MIT license.\\
+\textbf{Contact:} \texttt{matei.david at oicr.on.ca}\\
+\textbf{Supplementary information:} Supplementary data are available at \textit{Bioinformatics}
+online.}
+
+\maketitle
+
+\section{Introduction}
+
+The MinION produced by Oxford Nanopore Technologies (ONT) is a highly portable, third-generation sequencing instrument, comparable in size to a standard cell phone. The small form factor makes the MinION particularly suitable for sequencing experiments performed in remote locations~\cite{quick-ebola}. However, the MinION relies on the cloud computing platform \href{metrichor.com}{Metrichor} for \emph{basecalling}, i.e., translating the low-level, locally-generated sequencing data into DNA reads. One can easily envisage a setting in which the scarcity of internet access can limit the effectiveness of using a MinION for sequencing.
+
+Motivated by this situation, we introduce Nanocall, a basecaller for MinION sequencing data. Nanocall does not seek to replace Metrichor, but rather, to provide an offline alternative. In this sense, Nanocall has one important shortcoming compared to Metrichor, in that it performs strand-specific basecalls (``1D'', in Metrichor terminology), but it does not attempt to integrate the information from complementary strands (``2D''). Still, Nanocall might prove useful in situations where internet access is limited, or as a quick pre-Metrichor assessment tool that can be used to inspect basic sequencing characteristics.
+
+In recent developments, ONT have announced a move to a new R9 sequencing pore. All data used in this paper is based on the earlier R7 sequencing pore. ONT have also released Metrichor using a custom Developer License, significantly more restrictive than the MIT License we use for Nanocall.
+
+\section{Background}
+
+\paragraph{Sequencing overview.}
+Informally, the MinION sequencing works as follows. As part of an initial library preparation step, DNA is sheared into fragments of 8--20 Kbp. Proprietary chemistry guides the resulting double-stranded DNA fragments through a grid of small-sized holes, called ``nanopores'', where the actual sequencing takes place. To that end, adapters are ligated and the complementary strands of each DNA fragment are separated, resulting in a single-stranded DNA product that contains the original two strands concatenated, one after the other. (In ONT terminology, the first strand going through the nanopore is the \emph{template}, and the second one is the \emph{complement}.) The single-stranded DNA product is threaded through a nanopore, one DNA base at a time, all while measuring an electrical current that traverses the nanopore. The central idea is that the single-stranded DNA product present in the nanopore affects the current in a way that is strong enough to enable an eventual decoding process. This process, called \emph{basecalling}, takes as input a list of current measurements, and produces as output a list of DNA bases most likely to have generated those currents.
+
+\paragraph{Segmentation.}
+The first part of the decoding process is a segmentation step. The nanopore current measurements are taken at regular time intervals, but the threading of the single-stranded DNA product through the nanopore is a stochastic process, controlled by biological enzymes. The segmentation process takes as input the list of regular current measurements and produces a list of individual \emph{events}, each consisting of: \emph{start} $\texttt{start}_i$, \emph{length} $\texttt{length}_i$, \emph{mean} $\texttt{mean}_i$, and \emph{standard deviation} $\texttt{stdv}_i$. Ideally, each event corresponds to a different DNA context found inside the nanopore, and consecutive events correspond contexts differring by exactly one base. In practice, the segmentation process is noisy, so the event sequence will inevitably contain ``stays'' (consecutive events corresponding to the same context) and ``skips'' (consecutive events corresponding to contexts different by more than one base). The segmentation process is performed locally. [TODO: By sequencer (MinION) or software (MinKNOW)??]
+
+\paragraph{Pore Models.}
+By sequencing known DNA [TODO: lambda??], ONT have been able to train \emph{pore models}, describing the currents that might be observed through the nanopore in various DNA contexts. As of the time of this writing, the models use DNA sequences of length 6 (``6-mers'') as context, and for each 6-mer, they contain the \emph{mean} $\mu_k$ and \emph{standard deviation} $\sigma_k$ of a Gaussian modelling the \emph{event mean}, and the \emph{mean} $\eta_k$ and \emph{standard deviation} $\gamma_k$ of an Inverse Gaussian modelling the \emph{event standard deviation}. These pore models are included in basecalled data produced by Metrichor, and they depend only on the chemistry being used, not on the specific sample. There are currently 3 models in use, 1 for the template strand and 2 for the complement strand.
+
+\paragraph{Scaling Parameters.}
+As a further complication, the current measurements have slightly different characteristics between nanopores, and between the times when they are taken by the same nanopore. To account for these variations, Metrichor uses a set of read- and strand-specific scaling parameters: \texttt{shift}, \texttt{scale}, \texttt{drift}, \texttt{var}, \texttt{scale'}, and \texttt{var'}. Using these parameters, if event $i$ corresponds to context $k$, then:
+\begin{align*}
+\texttt{mean}_i & \sim
+G(\texttt{scale} \cdot \mu_k + \texttt{shift} + \texttt{drift} \cdot \texttt{start}_i,
+\texttt{var} \cdot \sigma_k), \\
+\texttt{stdv}_i & \sim
+IG(\texttt{scale'} \cdot \eta_k,
+\texttt{var'} \cdot \gamma_k).
+\end{align*}
+
+\paragraph{Basecalling.}
+The core of the decoding process is the basecalling step, performed in the cloud by Metrichor, which transforms the event sequence into a DNA base sequence most likely to have produced the given event sequence. Sources within the ONT community suggest this is done using a Hidden Markov Model, where the hidden state corresponds to the DNA context present in the nanopore, and where the pore models are used to compute emission probabilites. The finer details of this process consist of computing the scaling parameters, and of integrating the information from the individual complementary strands (1D) into a consistent read (2D).
+
+\begin{methods}
+\section{Methods}
+
+The main motivation behind Nanocall is to offer an offline alternative to Metrichor, and since the initial signal segmentation step is performed locally, we do not seek to replace it. As such, the input to Nanocall consists of a set of segmented event sequences, stored in ONT-specific \texttt{Fast5} files. Nanocall can also be given a set of state transition probabilities and a set of pore models, but these are optional, and if they are not specified, sensible defaults are used. Nanocall processes each input file separately as follows. It begins by separating the complementary strands in the input event sequence. Next, it computes pore model scaling parameter estimates. Optionally, Nanocall can perform several rounds of training to update the scaling parameters using the Expectation Maximization algorithm, and also to update the state transition parameters using the Baum-Welch algorithm. Finally, Nanocall performs a standard Viterbi decoding on a Hidden Markov Model where the state is the 6-mer in the nanopore, computing the most likely sequence of 6-mers to have generated the given event sequence. The details of the individual steps are given below.
+
+\paragraph{State Transitions.}
+The state transitions are prior probabilities of moving from one state to another state. The default state transitions are computed based on 2 parameters: the ``stay'' probability \pstay and the ``skip'' probability \pskip. The former, \pstay, is the probability that 2 consecutive events are emitted from the same context/state. So, this corresponds to a segmentation error where an erroneous event break was introduced. The latter, \pskip, is the probability that 2 consecutive events are emitted from 2 states that differ by more than 1 kmer shift. So, this corresponds to either a segmentation error or a sequencing error (i.e., DNA moved too fast) where 1 or more events were lost. A slight complication is that, by increasing the number of skips, there is always more than 1 way of going from any one state to any other. For example, \texttt{ACGTGT} can be followed by \texttt{GTGTAC} using either 1 or 3 skips. The exact formula for computing state transitions takes this into account this fact:
+\begin{align*}
+\tau(k_1, k_2) = \quad &
+\delta_{k_1 = k_2} \cdot \pstay
+\\
+& + \delta_{\suffix(k_1, 5) = \prefix(k_2, 5)} \cdot \pstep \cdot \frac{1}{4}
+\\
+& + \sum_{i=2}^5 \delta_{\suffix(k_1, 6-i) = \prefix(k_2, 6-i)} \cdot \pskipone^{i-1} \cdot \frac{1}{4^i}
+\\
+& + \sum_{i>5} \pskipone^{i-1} \cdot \frac{1}{4^6}.
+\end{align*}
+Here: $\delta$ is the standard indicator function; $\mathrm{prefix}(k,i)$ / $\mathrm{suffix}(k,i)$ are the preffix/suffix of $k$ of length $i$; $\pstep := (1 - \pstay - \pskip)$; and $\pskipone = \pskip / (1 + \pskip)$ corresponds to the probability of exactly 1 skip.
+
+In order to speed up the computation, both Forward-Backward (used during training) and Viterbi (used during basecalling) disregard transitions between states that correspond to more than 1 skip. Thus, each state has at most 21 neighbours: itself, 4 at distance 1, and 16 at distance 2.
+
+By default, Nanocall uses $\pstay = .1$ and $\pskip = .3$, which was observed to work well on several data sets. When transition parameter training is enabled (see Supplement), the values of \pstay and \pskip are updated individually for each strand of each read, using the standard Baum-Welch algorithm.
+
+\paragraph{Pore Models.}
+Nanocall is designed to work with 6-mer based pore models, and the default models used by Metrichor are built in and used by default. These are 3 models, 1 for the template strand and 2 for the complement strand. Emission probabilities are derived from pore models by multiplying the Gaussian and Inverse Gaussian pdf-s that model the event mean and event standard deviation, respectively. This is done after the models are scaled (see Scaling below.)
+
+\paragraph{Strand Separation.}
+The segmented list of events available in pre-Metrichor \texttt{Fast5} files does not always contain markers delimiting the template and complement strands. To deal with this situation, Nanocall implements some simple heuristics for separating the 2 strands. The core idea here is that the ``hairpin'' adapter connecting the 2 strands (in the single-stranded DNA product being threaded through the nanopore) contains abasic DNA, that is, DNA backbone lacking DNA bases. This abasic DNA generates a specific signal in the event sequence.
+
+In the first step, we use a heuristic to detect the \emph{abasic current level}. In general, the currents corresponding to regular DNA are in the range 50-90 pA, and those corresponding to abasic DNA are higher than 100 pA. However, the exact levels are affected by the \texttt{shift} and \texttt{scale} parameters, which are not known a priori. For that reason, Nanocall uses a heuristic to estimate abasic current level, specifically: take the current level larger than 99\% of all currents in that read, and add 5pA.
+
+In the second step, Nanocall looks for islands of 5 or more consecutive abasic current measurements. Then, islands within 50bp of each other are merged. Next, Nanocall selects the island closest to the middle of the event sequence. If this island is within the middle third of the entire event sequence, then it is used to separate the events corresponding to the 2 strands. If on the other hand this island is outside of the middle third of the event sequence, Nanocall gives up trying to separate the strands and attempts to basecall the entire event sequence as a template strand.
+
+\paragraph{Scaling.}
+Pore model scaling parameter estimation is a crucial part of the basecalling process. Since accurate scaling dominates the running time, Nanocall presents the user with several scaling options.
+
+In all cases, Nanocall initializes the scaling parameters using a crude ``Method of Moments'' approach, that fits the mean and standard deviation of (a subset of) the event sequence to the mean and standard deviation of the pore model being scaled. This approach relies on the assumption that the states producing the observed events are sampled uniformly at random, which is clearly not the case. However, for event sequences that are long enough, this method provides a reasonable base setting. This method only estimates 2 of the 6 scaling paramters discussed in the Background section: \texttt{shift} and \texttt{scale}. The remaining 4 are left with default values (0 for additive terms, 1 for multiplicative factors). The MoM scaling is the fastest, but also the least accurate. Since the other available scaling options dominate the total runtime, Nanocall can be instructed to use only MoM scaling.
+
+Beyond MoM, Nanocall offers the option to train the pore model scaling parameters by performing several rounds of an Expectation Maximization (EM) algorithm. The training stops either when the maximum allowed number of rounds is reached (by default, 10/20 for single-/double-strand scaling, see below), or when the improvement in likelihood drops below a certain threshold (by default, a multiplicative factor of $e$). Each training round proceeds as follows. First, the ``E'' step consists of running the standard Forward-Backward algorithm to compute posterior probabilities on 2 subsets of the event sequence, extracted from the start and end of each strand. Next, the ``M'' step updates all 6 scaling parameters with values that maximize the likelihood of the observed emissions. More details about this update process are given in the Supplement.
+
+Nanocall provides the user with the option of performing either single- or double- strand scaling. With single-strand scaling, the 2 strands of each read are processed independently of each other. This is what (we believe) Metrichor implements. With double-strand scaling, the pore models for the 2 strands of each read are scaled with the same set of 6 parameters. The motivation for double-strand scaling is to avoid potential overfitting by allowing the scaling parameters to differ radically between the 2 strands of the same read.
+
+\paragraph{Viterbi Decoding.}
+After any optional training, Nanocall runs a standard Viterbi decoding algorithm, computing the most likely state sequence to have generated the observed event sequence.
+
+When several pore models are applicable to the same strand, as is the case with the default models and the complement strand, Nanocall will select which model to use during training if (training is performed, and) the Forward-Backward computed likelihood using one model is better than all other applicable models by a multiplicative factor of $e^{20}$. If a model is not selected during training, the read strand is basecalled using all applicable models, and the one where the decoding of the last event is more certain will be used.
+
+\end{methods}
+
+\section{Results}
+
+We ran Nanocall on 4 ONT datasets produced from ecoli, ecoli PCR, human, and human PCR data. For each dataset, we used 10,000 reads labelled as ``passing'' by Metrichor, and ran Nanocall using 5 different option sets: no training (\texttt{fast}), and single/double strand scaling with/without transition parameter training (\texttt{\{1/2\}\{ss/ss-no\_tt\}}). The main results are given in Table~\ref{tab:main}. The most important conclusion we were able to draw from these runs is that double strand scaling (\texttt{2ss}) performs better than single strand scaling (\texttt{1ss}). While the effect is minimal on ecoli data, it becomes quite pronounced on human data, where single strand scaling leads to an additional 4--6$\%$ reads being mismappings. When it comes to transition parameters, surprisingly, no training performs slightly better than training on human data: $2\%$ on human native data, $<1\%$ on human PCR data. However, not training transition parameters makes the performance of a run much more dependent on the default transition parameters. For this reason, and in spite of the slight increase in mismapping rate, we decided on using double strand scaling with transition parameter training (\texttt{2ss}) as the Nanocall default.
+
+\begin{table}[!t]
+\processtable{
+Performance of Nanocall. Options: \texttt{fast}: no training; \texttt{\{1/2\}\{ss/ss-no\_tt\}}: single/double strand scaling, with/without transition parameter training. M/N Mis: fraction of Metrichor 1D/Nanocall reads where the mapping of at least one strand does not overlap the mapping of the Metrichor 2D read. M/N Err: Mapping edit distance divided by read length, for reads where all 5 mappings ($1 \times$ Metrichor 2D, $2 \times$ Metrichor 1D, $2 \times$ Nanocall) are overlapping. Speed: Kbp per core-hour.
+\label{tab:main}}
+{
+\begin{tabular}{@{}lllllll@{}}
+\toprule
+Dataset & Options & M Mis & N Mis & M Err & N Err & Speed \\
+\midrule
+Ecoli &  \texttt{2ss}         &  .030  &  .058  &  .311  &  .331  &  312   \\
+&  \texttt{1ss}         &  .030  &  .062  &  .311  &  .328  &  390   \\
+&  \texttt{1ss-no\_tt}  &  .030  &  .062  &  .311  &  .318  &  302   \\
+&  \texttt{2ss-no\_tt}  &  .030  &  .064  &  .311  &  .32   &  232   \\
+&  \texttt{fast}        &  .030  &  .074  &  .312  &  .33   &  929   \\
+\midrule
+Ecoli PCR &  \texttt{2ss}         &  .024  &  .046  &  .302  &  .326  &  297   \\
+&  \texttt{1ss}         &  .024  &  .049  &  .303  &  .323  &  179   \\
+&  \texttt{2ss-no\_tt}  &  .024  &  .049  &  .303  &  .313  &  294   \\
+&  \texttt{1ss-no\_tt}  &  .024  &  .051  &  .303  &  .313  &  184   \\
+&  \texttt{fast}        &  .024  &  .068  &  .304  &  .326  &  379   \\
+\midrule
+Human &  \texttt{2ss-no\_tt}  &  .191  &  .243  &  .328  &  .334  &  259   \\
+&  \texttt{2ss}         &  .191  &  .263  &  .328  &  .335  &  170   \\
+&  \texttt{1ss}         &  .191  &  .320  &  .328  &  .331  &  218   \\
+&  \texttt{1ss-no\_tt}  &  .191  &  .323  &  .328  &  .331  &  329   \\
+&  \texttt{fast}        &  .191  &  .536  &  .327  &  .339  &  1184  \\
+\midrule
+Human PCR &  \texttt{2ss-no\_tt}  &  .114  &  .160  &  .318  &  .325  &  176   \\
+&  \texttt{2ss}         &  .114  &  .164  &  .318  &  .332  &  121   \\
+&  \texttt{1ss-no\_tt}  &  .114  &  .201  &  .318  &  .323  &  153   \\
+&  \texttt{1ss}         &  .114  &  .203  &  .318  &  .331  &  236   \\
+&  \texttt{fast}        &  .114  &  .450  &  .318  &  .336  &  960   \\
+\botrule
+\end{tabular}
+}
+{}
+\end{table}
+
+Overall, Table~\ref{tab:main} shows that the reads produced by Nanocall (\texttt{2ss}) are directly comparable to Metrichor 1D reads: Nanocall increases the mismapping rate by an additional \sim~$3\%$ for ecoli data, and \sim~$6\%$ on human data. Furthermore, Nanocall and Metrichor 1D reads have largely similar percent identity at \sim~$68\%$. The similarity between Nanocall and Metrichor 1D reads is further demonstrated in Figures~\ref{fig:n_vs_m_scale}--\ref{fig:id_vs_aln}, where we compare Nanocall reads with Metrichor 1D (same strand) and 2D reads, on several metrics: scaling parameters \texttt{scale} and \texttt{shift}, identify, read length, and fraction aligned. The only concern in here could be a subpopulation of reads in Figure~\ref{fig:n_vs_m_scale} on which Metrichor \texttt{scale} is notably smaller than Nanocall \texttt{scale} (slightly more pronounced in human data). This could be partly explained by the fact that Nanocall performs double strand scaling, while (we believe) Metrichor performs single strand scaling.
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m_scale.pdf}}
+\caption{Nanocall vs Metrichor \texttt{scale}.}\label{fig:n_vs_m_scale}
+\end{figure*}
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m_shift.pdf}}
+\caption{Nanocall vs Metrichor \texttt{shift}.}\label{fig:n_vs_m_shift}
+\end{figure*}
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m_identity.pdf}}
+\caption{Nanocall vs Metrichor identity.}\label{fig:n_vs_m_identity}
+\end{figure*}
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m2d_identity.pdf}}
+\caption{Nanocall vs Metrichor 2D identity.}\label{fig:n_vs_m2d_identity}
+\end{figure*}
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m_read_len.pdf}}
+\caption{Nanocall vs Metrichor read length.}\label{fig:n_vs_m_read_len}
+\end{figure*}
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m2d_read_len.pdf}}
+\caption{Nanocall vs Metrichor 2D read length.}\label{fig:n_vs_m2d_read_len}
+\end{figure*}
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m_frac_aligned.pdf}}
+\caption{Nanocall vs Metrichor fraction aligned.}\label{fig:n_vs_m_frac_aligned}
+\end{figure*}
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m2d_frac_aligned.pdf}}
+\caption{Nanocall vs Metrichor 2D fraction aligned.}\label{fig:n_vs_m2d_frac_aligned}
+\end{figure*}
+
+\begin{figure*}[!tp]
+\centerline{\includegraphics[width=\textwidth]{../exports/id_vs_aln.pdf}}
+\caption{Identity vs fraction aligned, for each of the 5 read types: Nanocall template/complement, Metrichor template/complement/2D.}\label{fig:id_vs_aln}
+\end{figure*}
+
+To quantify the effects of the default transition parameters, we used 1,000 human pcr reads, and ran Nanocall in double strand scaling mode without transition parameter training (\texttt{2ss-no\_tt}), using several parameter values: $\pstay \in \{ .9, 1.0^*, 1.1 \}$ and $\pskip \in \{ 2.6, 2.8, 3.0^*, 3.2 \}$ ($^*$ denotes the default). The results of these runs are given in Table~\ref{tab:default_transitions}, showing that, while \pstay and \pskip do affect mappability, their influence is quite limited: a difference of $<1\%$ in mappability between all runs. Note: we expect \pstay and \pskip to have negligible effect when transition parameter training is enabled (\texttt{2ss}).
+
+\begin{table}[!t]
+\processtable{
+Influence of default transition parameters \pstay and \pskip. All runs on 1,000 human pcr reads, with double strand scaling with no transition parameter training (\texttt{2ss-no\_tt}). \texttt{pstay\_xy}: $\pstay = x.y$; \texttt{pskip\_uv}: $\pskip=.uv$. Column labels: see Table~\ref{tab:main}.
+\label{tab:default_transitions}}
+{
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Options & M Mis & N Mis & M Err & N Err \\
+\midrule
+\texttt{2ss-no\_tt-pstay\_11-pskip\_26}  &  .127  &  .172  &  .32   &  .333  \\
+\texttt{2ss-no\_tt-pstay\_10-pskip\_26}  &  .127  &  .174  &  .32   &  .333  \\
+\texttt{2ss-no\_tt-pstay\_10-pskip\_28}  &  .127  &  .174  &  .32   &  .333  \\
+\texttt{2ss-no\_tt-pstay\_11-pskip\_28}  &  .127  &  .175  &  .32   &  .333  \\
+\texttt{2ss-no\_tt-pstay\_09-pskip\_26}  &  .127  &  .176  &  .32   &  .333  \\
+\texttt{2ss-no\_tt-pstay\_09-pskip\_28}  &  .127  &  .176  &  .32   &  .334  \\
+\texttt{2ss-no\_tt-pstay\_10-pskip\_30}  &  .127  &  .177  &  .321  &  .333  \\
+\texttt{2ss-no\_tt-pstay\_09-pskip\_30}  &  .127  &  .178  &  .321  &  .332  \\
+\texttt{2ss-no\_tt-pstay\_09-pskip\_32}  &  .127  &  .178  &  .32   &  .332  \\
+\texttt{2ss-no\_tt-pstay\_11-pskip\_30}  &  .127  &  .178  &  .32   &  .333  \\
+\texttt{2ss-no\_tt-pstay\_10-pskip\_32}  &  .127  &  .179  &  .321  &  .333  \\
+\texttt{2ss-no\_tt-pstay\_11-pskip\_32}  &  .127  &  .180  &  .321  &  .333  \\
+\botrule
+\end{tabular}
+}
+{}
+\end{table}
+
+We also sutdied the effects of perturbing the paramters that control training: the number of events used (default 100), the maximum number of rounds per strand (default: 10), and the minimum improvement in fit (default: additive term of $1.0$ in log space, corresponding to multiplicative term $e$). The results are given in Table~\ref{tab:training}. Clearly, increasing the number of events used per strand ($\texttt{nume}$) directly improves mappability, but also decreases speed. Increasing the maximum number of training rounds ($\texttt{maxr}$) has the same effect, but improvements in mappability are lost beyond 10 rounds. The effect of the minimum fit improvement ($\texttt{minp}$) on mappability and even speed is harder to quantify.
+
+\begin{table}[!t]
+\processtable{
+Influence of parameters that control training. All runs on 1,000 human pcr reads, using double strand scaling mode with transition parameter training (\texttt{2ss}). \texttt{nume\_x}: use $x$ events used per strand; \texttt{maxr\_y}: maximum of $y$ rounds per strand; \texttt{minp\_uv}: minimum fit improvement of $u.v$ in log space. Column labels: see Table~\ref{tab:main}.
+\label{tab:training}}
+{
+\begin{tabular}{@{}llllll@{}}
+\toprule
+Options & M Mis & N Mis & M Err & N Err & Speed \\
+\midrule
+\texttt{2ss-nume\_250}  &  .127  &  .165  &  .32   &  .331  &  97   \\
+\texttt{2ss-minp\_15}   &  .127  &  .175  &  .32   &  .332  &  177  \\
+\texttt{2ss}            &  .127  &  .177  &  .321  &  .333  &  121  \\
+\texttt{2ss-maxr\_05}   &  .127  &  .178  &  .321  &  .333  &  195  \\
+\texttt{2ss-maxr\_15}   &  .127  &  .178  &  .321  &  .333  &  121  \\
+\texttt{2ss-maxr\_20}   &  .127  &  .178  &  .321  &  .333  &  123  \\
+\texttt{2ss-minp\_20}   &  .127  &  .181  &  .32   &  .333  &  153  \\
+\texttt{2ss-maxr\_04}   &  .127  &  .184  &  .32   &  .332  &  155  \\
+\texttt{2ss-minp\_05}   &  .127  &  .189  &  .32   &  .332  &  106  \\
+\texttt{2ss-nume\_150}  &  .127  &  .191  &  .32   &  .33   &  159  \\
+\texttt{2ss-maxr\_03}   &  .127  &  .200  &  .32   &  .333  &  281  \\
+\texttt{2ss-maxr\_02}   &  .127  &  .221  &  .32   &  .337  &  299  \\
+\texttt{2ss-nume\_100}  &  .127  &  .221  &  .32   &  .331  &  257  \\
+\texttt{2ss-nume\_050}  &  .127  &  .270  &  .319  &  .332  &  428  \\
+\botrule
+\end{tabular}
+}
+{}
+\end{table}
+
+%\enlargethispage{12pt}
+
+%% \begin{table}[!t]
+%% \processtable{This is table caption\label{Tab:01}} {\begin{tabular}{@{}llll@{}}\toprule head1 &
+%% head2 & head3 & head4\\\midrule
+%% row1 & row1 & row1 & row1\\
+%% row2 & row2 & row2 & row2\\
+%% row3 & row3 & row3 & row3\\
+%% row4 & row4 & row4 & row4\\\botrule
+%% \end{tabular}}{This is a footnote}
+%% \end{table}
+
+%% \begin{figure}[!tpb]%figure1
+%% \fboxsep=0pt\colorbox{gray}{\begin{minipage}[t]{235pt} \vbox to 100pt{\vfill\hbox to
+%% 235pt{\hfill\fontsize{24pt}{24pt}\selectfont FPO\hfill}\vfill}
+%% \end{minipage}}
+%% %\centerline{\includegraphics{fig01.eps}}
+%% \caption{Caption, caption.}\label{fig:01}
+%% \end{figure}
+
+%\begin{figure}[!tpb]%figure2
+%%\centerline{\includegraphics{fig02.eps}}
+%\caption{Caption, caption.}\label{fig:02}
+%\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%     please remove the " % " symbol from \centerline{\includegraphics{fig01.eps}}
+%     as it may ignore the figures.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Conclusion}
+
+In this work we presented Nanocall, an open source, MIT licensed basecaller for NGS data produced by Oxford Nanopore MinION instruments. Nanocall uses some simple heuristics for splitting the sequence of events (current levels) into strands, it models the events using a Hidden Markov Model where the states are the kmers being sequenced, it optionally scales the pore model emissions using several rounds of Expectation Maximization based on posteriors computed with Forward-Backward, and it produces basecalls by running Viterbi.
+
+Overall, Nanocall produces reads comparable in mappability and quality to Metrichor 1D reads with \sim~68\% identity. As an important technical difference from Metrichor, with Nanocall we found that double-strand pore model scaling seems to work better than single-strand scaling, suggesting that the latter might lead to model overfitting.
+
+An important future direction would be to implement 2D basecalls. However, this direction should be re-evaluated once recent ONT developments are fully understood, including the move to a new sequencing pore (R9), and the release of Metrichor source code under a more restrictive Developer License.
+
+\section*{Acknowledgements}
+
+TODO.
+
+\section*{Funding}
+
+TODO.
+
+%\bibliographystyle{natbib}
+%\bibliographystyle{achemnat}
+%\bibliographystyle{plainnat}
+%\bibliographystyle{abbrv}
+%\bibliographystyle{bioinformatics}
+%
+%\bibliographystyle{plain}
+%
+%\bibliography{Document}
+
+
+\begin{thebibliography}{}
+
+\bibitem[Quick {\it et~al}., 2016]{quick-ebola}
+Quick, J {\it et~al} (2016) Real-time, portable genome sequencing for Ebola surveillance, {\it Nature}, {\bf 530}, 228--232.
+
+%% \bibitem[Bag {\it et~al}., 2001]{Bag01}
+%% Bag,M., Name2, Name3 (2001) Article title, {\it Journal Name}, {\bf 99}, 33-54.
+
+%% \bibitem[Yoo \textit{et~al}., 2003]{Yoo03}
+%% Yoo,M.S. \textit{et~al}. (2003) Oxidative stress regulated genes
+%% in nigral dopaminergic neurnol cell: correlation with the known
+%% pathology in Parkinson's disease. \textit{Brain Res. Mol. Brain
+%% Res.}, \textbf{110}(Suppl. 1), 76--84.
+
+%% \bibitem[Lehmann, 1986]{Leh86}
+%% Lehmann,E.L. (1986) Chapter title. \textit{Book Title}. Vol.~1, 2nd edn. Springer-Verlag, New York.
+
+%% \bibitem[Crenshaw and Jones, 2003]{Cre03}
+%% Crenshaw, B.,III, and Jones, W.B.,Jr (2003) The future of clinical
+%% cancer management: one tumor, one chip. \textit{Bioinformatics},
+%% doi:10.1093/bioinformatics/btn000.
+
+%% \bibitem[Auhtor \textit{et~al}. (2000)]{Aut00}
+%% Auhtor,A.B. \textit{et~al}. (2000) Chapter title. In Smith, A.C.
+%% (ed.), \textit{Book Title}, 2nd edn. Publisher, Location, Vol. 1, pp.
+%% ???--???.
+
+%% \bibitem[Bardet, 1920]{Bar20}
+%% Bardet, G. (1920) Sur un syndrome d'obesite infantile avec
+%% polydactylie et retinite pigmentaire (contribution a l'etude des
+%% formes cliniques de l'obesite hypophysaire). PhD Thesis, name of
+%% institution, Paris, France.
+
+\end{thebibliography}
+\end{document}
