@@ -78,7 +78,7 @@ JTS note: typical gaussian notation is $\mathcal{N}(\mu, \sigma^2)$, not $G(\mu,
 
 The core of the decoding process is the basecalling step, performed in the cloud by Metrichor, which infers the DNA sequence most likely to have produced the observed event sequence. Metrichor currently uses a hidden Markov model, where the hidden state corresponds to the DNA context present in the nanopore, and where the pore models are used to compute emission probabilites. We describe our approach to basecalling in the following section.
 
-%Other HMMs for nanopore data could/should be mentioned:
+%JTS Note: other HMMs for nanopore data could/should be mentioned:
 %http://www.sciencedirect.com/science/article/pii/S0006349512004511
 %http://www.ncbi.nlm.nih.gov/pubmed/25649617
 %+nanopolish paper
@@ -140,7 +140,7 @@ When several pore models are applicable to the same strand, as is the case with 
 
 \section{Results}
 
-We ran Nanocall on 4 ONT datasets produced from ecoli, ecoli PCR, human, and human PCR data. For each dataset, we used 10,000 reads labelled as ``passing'' by Metrichor, and ran Nanocall using 5 different option sets: no training (\texttt{fast}), and single/double strand scaling with/without transition parameter training (\texttt{\{1/2\}\{ss/ss-no\_tt\}}). The main results are given in Table~\ref{tab:main}. The most important conclusion we were able to draw from these runs is that double strand scaling (\texttt{2ss}) performs better than single strand scaling (\texttt{1ss}). While the effect is minimal on ecoli data, it becomes quite pronounced on human data, where single strand scaling leads to an additional 4--6$\%$ reads being mismappings. When it comes to transition parameters, surprisingly, no training performs slightly better than training on human data: $2\%$ on human native data, $<1\%$ on human PCR data. However, not training transition parameters makes the performance of a run much more dependent on the default transition parameters. For this reason, and in spite of the slight increase in mismapping rate, we decided on using double strand scaling with transition parameter training (\texttt{2ss}) as the Nanocall default.
+We ran Nanocall on four ONT datasets consisting of \emph{E. coli}, PCR-amplified \emph{E. coli}, human, and PCR-amplified human DNA. For each dataset, we used (JTS: randomly sampled?) 10,000 reads labelled as ``passing'' by Metrichor, and ran Nanocall using 5 different option sets: no training (\texttt{fast}), and single/double strand scaling with/without transition parameter training (\texttt{\{1/2\}\{ss/ss-no\_tt\}}). The main results are given in Table~\ref{tab:main}. The most important conclusion we were able to draw from these runs is that double strand scaling (\texttt{2ss}) performs better than single strand scaling (\texttt{1ss}). While the effect is minimal on ecoli data, it becomes quite pronounced on human data, where single strand scaling leads to an additional 4--6$\%$ reads being mismappings. When it comes to transition parameters, surprisingly, no training performs slightly better than training on human data: $2\%$ on human native data, $<1\%$ on human PCR data. However, not training transition parameters makes the performance of a run much more dependent on the default transition parameters. For this reason, and in spite of the slight increase in mismapping rate, we decided on using double strand scaling with transition parameter training (\texttt{2ss}) as the Nanocall default.
 
 \begin{table}[!t]
 \processtable{
@@ -180,7 +180,7 @@ Human PCR &  \texttt{2ss-no\_tt}  &  .114  &  .160  &  .318  &  .325  &  176   \
 {}
 \end{table}
 
-Overall, Table~\ref{tab:main} shows that the reads produced by Nanocall (\texttt{2ss}) are directly comparable to Metrichor 1D reads: Nanocall increases the mismapping rate by an additional \sim~$3\%$ for ecoli data, and \sim~$6\%$ on human data. Furthermore, Nanocall and Metrichor 1D reads have largely similar percent identity at \sim~$68\%$. The similarity between Nanocall and Metrichor 1D reads is further demonstrated in Figures~\ref{fig:n_vs_m_scale}--\ref{fig:id_vs_aln}, where we compare Nanocall reads with Metrichor 1D (same strand) and 2D reads, on several metrics: scaling parameters \texttt{scale} and \texttt{shift}, identify, read length, and fraction aligned. The only concern in here could be a subpopulation of reads in Figure~\ref{fig:n_vs_m_scale} on which Metrichor \texttt{scale} is notably smaller than Nanocall \texttt{scale} (slightly more pronounced in human data). This could be partly explained by the fact that Nanocall performs double strand scaling, while (we believe) Metrichor performs single strand scaling.
+Overall, Table~\ref{tab:main} shows that the reads produced by Nanocall (\texttt{2ss}) are directly comparable to Metrichor 1D reads: Nanocall increases the mismapping rate by an additional \sim~$3\%$ for ecoli data, and \sim~$6\%$ on human data (JTS: we should distinguish between reads that don't align to the reference at all, and reads that are placed incorrectly if possible). Furthermore, Nanocall and Metrichor 1D reads have largely similar percent identity at \sim~$68\%$. The similarity between Nanocall and Metrichor 1D reads is further demonstrated in Figures~\ref{fig:n_vs_m_scale}--\ref{fig:id_vs_aln}, where we compare Nanocall reads with Metrichor 1D (same strand) and 2D reads, on several metrics: scaling parameters \texttt{scale} and \texttt{shift}, identify, read length, and fraction aligned. The only concern in here could be a subpopulation of reads in Figure~\ref{fig:n_vs_m_scale} on which Metrichor \texttt{scale} is notably smaller than Nanocall \texttt{scale} (slightly more pronounced in human data). This could be partly explained by the fact that Nanocall performs double strand scaling, while (we believe) Metrichor performs single strand scaling.
 
 \begin{figure*}[!tp]
 \centerline{\includegraphics[height=.9\textheight]{../exports/n_vs_m_scale.pdf}}
@@ -256,7 +256,7 @@ Options & M Mis & N Mis & M Err & N Err \\
 {}
 \end{table}
 
-We also sutdied the effects of perturbing the paramters that control training: the number of events used (default 100), the maximum number of rounds per strand (default: 10), and the minimum improvement in fit (default: additive term of $1.0$ in log space, corresponding to multiplicative term $e$). The results are given in Table~\ref{tab:training}. Clearly, increasing the number of events used per strand ($\texttt{nume}$) directly improves mappability, but also decreases speed. Increasing the maximum number of training rounds ($\texttt{maxr}$) has the same effect, but improvements in mappability are lost beyond 10 rounds. The effect of the minimum fit improvement ($\texttt{minp}$) on mappability and even speed is harder to quantify.
+We also studied the effects of perturbing the paramters that control training: the number of events used (default 100), the maximum number of rounds per strand (default: 10), and the minimum improvement in fit (default: additive term of $1.0$ in log space, corresponding to multiplicative term $e$). The results are given in Table~\ref{tab:training}. Clearly, increasing the number of events used per strand ($\texttt{nume}$) directly improves mappability, but also decreases speed. Increasing the maximum number of training rounds ($\texttt{maxr}$) has the same effect, but improvements in mappability are lost beyond 10 rounds. The effect of the minimum fit improvement ($\texttt{minp}$) on mappability and even speed is harder to quantify.
 
 \begin{table}[!t]
 \processtable{
@@ -321,11 +321,11 @@ Options & M Mis & N Mis & M Err & N Err & Speed \\
 
 \section{Conclusion}
 
-In this work we presented Nanocall, an open source, MIT licensed basecaller for NGS data produced by Oxford Nanopore MinION instruments. Nanocall uses some simple heuristics for splitting the sequence of events (current levels) into strands, it models the events using a Hidden Markov Model where the states are the kmers being sequenced, it optionally scales the pore model emissions using several rounds of Expectation Maximization based on posteriors computed with Forward-Backward, and it produces basecalls by running Viterbi.
+In this work we presented Nanocall, an open source, MIT licensed basecaller for data produced by Oxford Nanopore MinION instruments. Nanocall uses some simple heuristics for splitting the sequence of events (current levels) into strands, it models the events using a hidden Markov model where the states are the kmers being sequenced, it optionally scales the pore model emissions using several rounds of Expectation Maximization based on posteriors computed with Forward-Backward, and it produces basecalls by running Viterbi.
 
 Overall, Nanocall produces reads comparable in mappability and quality to Metrichor 1D reads with \sim~68\% identity. As an important technical difference from Metrichor, with Nanocall we found that double-strand pore model scaling seems to work better than single-strand scaling, suggesting that the latter might lead to model overfitting.
 
-An important future direction would be to implement 2D basecalls. However, this direction should be re-evaluated once recent ONT developments are fully understood, including the move to a new sequencing pore (R9), and the release of Metrichor source code under a more restrictive Developer License.
+% (JTS Note: I took this out for now, we cover R9 implications in the intro) An important future direction would be to implement 2D basecalls. However, this direction should be re-evaluated once recent ONT developments are fully understood, including the move to a new sequencing pore (R9), and the release of Metrichor source code under a more restrictive Developer License.
 
 \section*{Acknowledgements}
 
