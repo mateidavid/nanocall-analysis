@@ -75,7 +75,14 @@ IG(\texttt{scale'} \cdot \eta_k,
 JTS note: typical gaussian notation is $\mathcal{N}(\mu, \sigma^2)$, not $G(\mu, \sigma)$
 
 \paragraph{Basecalling.}
-The core of the decoding process is the basecalling step, performed in the cloud by Metrichor, which transforms the event sequence into a DNA base sequence most likely to have produced the given event sequence. Sources within the ONT community suggest this is done using a Hidden Markov Model, where the hidden state corresponds to the DNA context present in the nanopore, and where the pore models are used to compute emission probabilites. The finer details of this process consist of computing the scaling parameters, and of integrating the information from the individual complementary strands (1D) into a consistent read (2D).
+
+The core of the decoding process is the basecalling step, performed in the cloud by Metrichor, which infers the DNA sequence most likely to have produced the observed event sequence. Metrichor currently uses a hidden Markov model, where the hidden state corresponds to the DNA context present in the nanopore, and where the pore models are used to compute emission probabilites. We describe our approach to basecalling in the following section.
+
+%Other HMMs for nanopore data could/should be mentioned:
+%http://www.sciencedirect.com/science/article/pii/S0006349512004511
+%http://www.ncbi.nlm.nih.gov/pubmed/25649617
+%+nanopolish paper
+%http://www.nature.com/nbt/journal/v33/n10/abs/nbt.3360.html
 
 \begin{methods}
 \section{Methods}
