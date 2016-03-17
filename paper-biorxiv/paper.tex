@@ -110,9 +110,11 @@ In order to speed up the computation, both Forward-Backward (used during trainin
 By default, Nanocall uses $\pstay = .1$ and $\pskip = .3$, which we observed to work well on several data sets. When transition parameter training is enabled (see Supplement), the values of \pstay and \pskip are updated individually for each strand of each read, using the Baum-Welch algorithm.
 
 \paragraph{Pore Models.}
-Nanocall is designed to work with 6-mer based pore models, and the default models used by Metrichor are built in and used by default. These are 3 models, 1 for the template strand and 2 for the complement strand. Emission probabilities are derived from pore models by multiplying the Gaussian and Inverse Gaussian pdf-s that model the event mean and event standard deviation, respectively. This is done after the models are scaled (see Scaling below.)
+
+Nanocall is designed to work with 6-mer pore models. By default we use the models provided by Metrichor. These are 3 models, 1 for the template strand and 2 for the complement strand. Emission probabilities are calculated by multiplying the probability density from the Gaussian and Inverse Gaussian distributions that model the event mean and event standard deviation, respectively. This is done after the models are scaled (see Scaling below.)
 
 \paragraph{Strand Separation.}
+
 The segmented list of events available in pre-Metrichor \texttt{Fast5} files does not always contain markers delimiting the template and complement strands. To deal with this situation, Nanocall implements some simple heuristics for separating the 2 strands. The core idea here is that the ``hairpin'' adapter connecting the 2 strands (in the single-stranded DNA product being threaded through the nanopore) contains abasic DNA, that is, DNA backbone lacking DNA bases. This abasic DNA generates a specific signal in the event sequence.
 
 In the first step, we use a heuristic to detect the \emph{abasic current level}. In general, the currents corresponding to regular DNA are in the range 50-90 pA, and those corresponding to abasic DNA are higher than 100 pA. However, the exact levels are affected by the \texttt{shift} and \texttt{scale} parameters, which are not known a priori. For that reason, Nanocall uses a heuristic to estimate abasic current level, specifically: take the current level larger than 99\% of all currents in that read, and add 5pA.
