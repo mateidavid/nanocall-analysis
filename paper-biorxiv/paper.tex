@@ -17,8 +17,8 @@
 
 \subtitle{Subject Section}
 
-\title[Nanocall]{Nanocall: An Alternative Oxford Nanopore Basecaller}
-\author[David \textit{et~al}.]{Matei David\,$^{\text{\sfb 1,}*}$, Jonathan Dursi\,$^{\text{\sfb 1}}$, Delia Yao\,$^{\text{\sfb 1}}$, Paul Boutros\,$^{\text{\sfb 1,2}}$ and Jared Simpson\,$^{\text{\sfb 1,3,}*}$}
+\title[Nanocall]{Nanocall: An Open Source Basecaller for Oxford Nanopore Sequencing Data}
+\author[David \textit{et~al}.]{Matei David\,$^{\text{\sfb 1,}*}$, L.J. Dursi\,$^{\text{\sfb 1}}$, Delia Yao\,$^{\text{\sfb 1}}$, Paul C. Boutros\,$^{\text{\sfb 1,2}}$ and Jared T. Simpson\,$^{\text{\sfb 1,3,}*}$}
 \address{$^{\text{\sf 1}}$Ontario Institute for Cancer Research, Toronto, M5G 0A3, Canada. \\
 $^{\text{\sf 2}}$Department of Pharmacology and Toxicology, University of Toronto, Toronto, M5S 1A8, Canada. \\
 $^{\text{\sf 3}}$Department of Computer Science, University of Toronto, Toronto, M5S 2E4, Canada.}
@@ -30,11 +30,11 @@ $^{\text{\sf 3}}$Department of Computer Science, University of Toronto, Toronto,
 \editor{Associate Editor: XXXXXXX}
 
 \abstract{\textbf{Motivation:}
-The Oxford Nanopore MinION sequencer is highly portable, comparable in size to a cell phone. The small form factor makes the MinION particularly suitable for sequencing ``in the bush''. However, currently the MinION relies on the cloud computing platform Metrichor (\href{metrichor.com}{metrichor.com}) for translating technical, locally generated sequencing data into basecalls.\\
+The highly portable Oxford Nanopore MinION sequencer has enabled new applications of genome sequencing directly in the field.  However, the MinION currently relies on a cloud computing platform, Metrichor (\href{metrichor.com}{metrichor.com}), for translating locally generated sequencing data into basecalls.\\
 \textbf{Results:}
-In this paper we introduce Nanocall, a basecaller for Oxford Nanopore sequencing data. Nanocall does not seek to replace Metrichor, but instead, it aims to provide an alternative to Metrichor. In particular, Nanocall does not currently integrate the sequencing of the template and complement strands of the same DNA molecule into a single read (i.e., in Metrichor terminology, it produces ``1D'' but not ``2D'' reads). To estimate performace, we ran Nanocall on 4 datasets: \emph{E.coli} and Human, PCR-treated and native samples. Nanocall reads have \sim~68\% identity, directly comparable to Metrichor 1D reads, but smaller than \sim~87\% for Metrichor 2D reads. Nanocall took [TODO] $\sim$80hr of single-core CPU time per 100Mbp of 2D data, which is a typical yield for a 24hr sequencing experiment. Nanocall supports multi-threading, so on a 4-core CPU, Nanocall would run in time comparable to the sequencer itself.\\
+In this paper we introduce Nanocall, a basecaller for Oxford Nanopore sequencing data as an alternative to Metrichor. Nanocall is freely available, open source and does not require an internet connection to run. However, Nanocall does not replace all of the features of Metrichor - in particular Nanocall does not currently integrate the sequencing of the template and complement strands of the same DNA molecule into a single read (in Metrichor terminology, it produces ``1D'' but not ``2D'' reads). To estimate performace, we ran Nanocall on 4 datasets: \emph{E.coli} and Human, from both natural DNA and PCR-amplified DNA. Nanocall reads have \sim~68\% identity, directly comparable to Metrichor 1D reads, but smaller than \sim~87\% for Metrichor 2D reads. Nanocall took [TODO] $\sim$80hr of single-core CPU time per 100Mbp of 2D data, which is a typical yield for a 24hr sequencing experiment. Nanocall supports multi-threading; on a 4-core CPU, Nanocall would run in time comparable to the sequencer itself.\\
 \textbf{Availability:}
-Nanocall is available at \href{https://github.com/mateidavid/nanocall}{https://github.com/mateidavid/nanocall}, released under the MIT license.\\
+Nanocall is available at \href{https://github.com/mateidavid/nanocall}{https://github.com/mateidavid/nanocall} under the MIT license.\\
 \textbf{Contact:} \texttt{matei.david at oicr.on.ca}\\
 \textbf{Supplementary information:} Supplementary data are available at \textit{Bioinformatics}
 online.}
