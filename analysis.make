@@ -180,6 +180,7 @@ ${1}.fa.gz: ${2}
 	  rm -rf $$$$dir; \
 	} 2>.$$@.log
 ${1}.stats: ${1}.fa.gz
+${1}.log: ${1}.fa.gz
 endef
 
 $(foreach dss,${DATASUBSETS},\
