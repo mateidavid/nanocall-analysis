@@ -21,6 +21,12 @@ GZIP := $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; f
 HUMAN_REFERENCE = ${DATA_DIR}/human.fa
 ECOLI_REFERENCE = ${DATA_DIR}/ecoli.fa
 
+KEYS := ${ROOT_DIR}/KEYS \
+	$(shell [ -r ${ROOT_DIR}/KEYS.local ] && echo ${ROOT_DIR}/KEYS.local) \
+	$(shell [ -r KEYS.local ] && echo KEYS.local)
+
+include keymap.make
+
 TAGS := $(shell [ -r TAGS.local ] && echo TAGS.local) \
 	$(shell [ -r ${ROOT_DIR}/TAGS.local ] && echo ${ROOT_DIR}/TAGS.local) \
 	${ROOT_DIR}/TAGS
@@ -31,8 +37,8 @@ get_ds_reference = $(call get_tag_value,reference,${1},reference)
 get_ds_subsets = $(call get_tag_list,subset,${1})
 get_ds_mappers = $(call get_tag_list,mapper,${1})
 
-get_dss_ds = $(shell echo "${1}" | cut -d. -f1)
-get_dss_ss = $(shell echo "${1}" | cut -d. -f2)
+get_dss_ds = $(word 1,$(subst ., ,${1}))
+get_dss_ss = $(word 2,$(subst ., ,${1}))
 get_dss_reference = $(call get_ds_reference,$(call get_dss_ds,${1}))
 get_dss_mappers = $(call get_ds_mappers,$(call get_dss_ds,${1}))
 
