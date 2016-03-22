@@ -120,13 +120,13 @@ endef
 # 2 = ss
 # 3 = ref_fa
 # 4 = bwa_opts_tag
-run_bwa_metrichor_fq = $(call run_bwa_unpaired,${1}.${2}.metrichor.bwa~${4}.bam,$(foreach st,0 1 2,${1}.${2}.metrichor.${st}.fq.gz),${3},$(call get_tag_value,bwa_opts,${1},${4}),${THREADS},14G)
+run_bwa_metrichor_fq = $(call run_bwa_unpaired,${1}.${2}.metrichor.bwa~${4}.bam,$(foreach st,0 1 2,${1}.${2}.metrichor.${st}.fq.gz),${3},$(call get_mapper_opt_cmd,bwa,${4}),${THREADS},14G)
 
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach ref,$(call get_ds_reference,${ds}),\
-$(foreach bwa_opts,$(call get_tag_list,bwa_opts,${ds}),\
+$(foreach bwa_opts,$(call get_ds_mapper_opt_list,${ds},bwa),\
 $(eval $(call run_bwa_metrichor_fq,${ds},${ss},${ref}.fa,${bwa_opts})))))))
 
 # parameters:
@@ -135,14 +135,14 @@ $(eval $(call run_bwa_metrichor_fq,${ds},${ss},${ref}.fa,${bwa_opts})))))))
 # 3 = nanocall_opts_tag
 # 4 = ref_fa
 # 5 = bwa_opts_tag
-run_bwa_nanocall_fa = $(call run_bwa_unpaired,${1}.${2}.nanocall~${3}.bwa~${5}.bam,${1}.${2}.nanocall~${3}.fa.gz,${4},$(call get_tag_value,bwa_opts,${1},${5}),${THREADS},14G)
+run_bwa_nanocall_fa = $(call run_bwa_unpaired,${1}.${2}.nanocall~${3}.bwa~${5}.bam,${1}.${2}.nanocall~${3}.fa.gz,${4},$(call get_mapper_opt_cmd,bwa,${5}),${THREADS},14G)
 
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach ref,$(call get_ds_reference,${ds}),\
-$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
-$(foreach bwa_opts,$(call get_tag_list,bwa_opts,${ds}),\
+$(foreach nanocall_opts,$(call get_ds_nanocall_opt_list,${ds}),\
+$(foreach bwa_opts,$(call get_ds_mapper_opt_list,${ds},bwa),\
 $(eval $(call run_bwa_nanocall_fa,${ds},${ss},${nanocall_opts},${ref}.fa,${bwa_opts}))))))))
 
 # define get_nanocall_fa
@@ -186,8 +186,8 @@ endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
-$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
-$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_tag_value,nanocall_opts,${ds},${nanocall_opts}),$(call get_run_threads,${nanocall_opts}),15G))))))
+$(foreach nanocall_opts,$(call get_ds_nanocall_opt_list,${ds}),\
+$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_nanocall_opt_cmd,${nanocall_opts}),$(call get_nanocall_opt_threads,${nanocall_opts}),15G))))))
 
 # define map_lastal_nanocall_fa
 # ${1}.nanocall~${NANOCALL_TAG}.lastal~${LASTAL_TAG}.bam: \
@@ -331,9 +331,9 @@ endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
-$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
+$(foreach nanocall_opts,$(call get_ds_nanocall_opt_list,${ds}),\
 $(foreach mapper,$(call get_ds_mappers,${ds}),\
-$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${ds}),\
+$(foreach mapper_opts,$(call get_ds_mapper_opt_list,${ds},${mapper}),\
 $(eval $(call make_m_vs_n_tables,${dss},${nanocall_opts},${mapper}~${mapper_opts}))))))))
 
 define make_meta_targets_ds_ss
@@ -341,14 +341,8 @@ define make_meta_targets_ds_ss
 ${1}.${2}.metrichor: \
 	${1}.${2}.metrichor.params.tsv \
 	$(foreach mapper,$(call get_ds_mappers,${1}),\
-	$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${1}),\
+	$(foreach mapper_opts,$(call get_ds_mapper_opt_list,${1},${mapper}),\
 	${1}.${2}.metrichor.${mapper}~${mapper_opts}.bam.summary.tsv))
-#${1}.${2}.nanocall: \
-#	$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${1}),\
-#	${1}.${2}.nanocall~${nanocall_opts})
-#${1}.${2}.metrichor+nanocall: \
-#	$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${1}),\
-#	${1}.${2}.metrichor+nanocall~${nanocall_opts})
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
@@ -362,11 +356,11 @@ ${1}.${2}.nanocall~${3}: \
 	${1}.${2}.nanocall~${3}.fa.gz \
 	${1}.${2}.nanocall~${3}.stats \
 	$(foreach mapper,$(call get_ds_mappers,${1}),\
-	$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${1}),\
+	$(foreach mapper_opts,$(call get_ds_mapper_opt_list,${1},${mapper}),\
 	${1}.${2}.nanocall~${3}.${mapper}~${mapper_opts}.bam.summary.tsv))
 ${1}.${2}.metrichor+nanocall~${3}: \
 	$(foreach mapper,$(call get_ds_mappers,${1}),\
-	$(foreach mapper_opts,$(call get_tag_list,${mapper}_opts,${1}),\
+	$(foreach mapper_opts,$(call get_ds_mapper_opt_list,${1},${mapper}),\
 	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.bam.summary.tsv \
 	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.error_table.tsv \
 	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.map_pos_table.tsv \
@@ -375,7 +369,7 @@ endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
-$(foreach nanocall_opts,$(call get_tag_list,nanocall_opts,${ds}),\
+$(foreach nanocall_opts,$(call get_ds_nanocall_opt_list,${ds}),\
 $(eval $(call make_meta_targets_ds_ss_no,${ds},${ss},${nanocall_opts}))))))
 
 #
@@ -385,32 +379,32 @@ define make_meta_targets_opt_pack
 .PHONY: ${1}.${2}.nanocall--${3} \
 	${1}.${2}.metrichor+nanocall--${3}
 ${1}.${2}.nanocall--${3}: \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
 	${1}.${2}.nanocall~${nanocall_opts})
 ${1}.${2}.metrichor+nanocall--${3}: \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
 	${1}.${2}.metrichor+nanocall~${nanocall_opts}) \
 	${1}.${2}.summary.${3}.map_pos.tsv \
 	${1}.${2}.summary.${3}.errors.tsv \
 	${1}.${2}.summary.${3}.runtime.tsv \
 	${1}.${2}.summary.${3}.tex
 ${1}.${2}.summary.${3}.errors.tsv: \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
 	${1}.${2}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.error_table.tsv)
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	${ROOT_DIR}/error-summary $$^ >$$@ 2>.$$@.log
 ${1}.${2}.summary.${3}.map_pos.tsv: \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
 	${1}.${2}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.map_pos_table.tsv)
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
 ${1}.${2}.summary.${3}.runtime.tsv: ${1}.${2}.metrichor.2.fq.gz \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
 	${1}.${2}.nanocall~${nanocall_opts}.log)
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	INPUT_SIZE=$$$$(zcat -f ${1}.${2}.metrichor.2.fq.gz | paste - - | paste - - | cut -f 2 | wc -c) \
 	${ROOT_DIR}/runtime-summary \
-	$(foreach nanocall_opts,$(call get_tag_value,nanocall_opt_pack,${1},${3}),\
+	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
 	${1}.${2}.nanocall~${nanocall_opts}.log) \
 	>$$@ 2>.$$@.log
 ${1}.${2}.summary.${3}.tex: \
@@ -423,5 +417,5 @@ endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
-$(foreach opt_pack,$(call get_tag_list,nanocall_opt_pack,${ds}),\
+$(foreach opt_pack,$(call get_ds_nanocall_opt_pack_list,${ds}),\
 $(eval $(call make_meta_targets_opt_pack,${ds},${ss},${opt_pack}))))))

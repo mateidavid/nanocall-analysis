@@ -42,43 +42,52 @@ subset|pass_10000                       grep /pass/ | head -n 10000
 mapper_option|bwa|ont2d                 -x ont2d
 
 # main options
-nanocall_option|fast                    --no-train
-nanocall_option|1ss-no_tt               --single-strand-scaling --no-train-transitions
-nanocall_option|1ss                     --single-strand-scaling
-nanocall_option|2ss-no_tt               --double-strand-scaling --no-train-transitions
-nanocall_option|2ss                     --double-strand-scaling
-# thread analysis options
-nanocall_option|2ss-t1                  --double-strand-scaling
-nanocall_option|2ss-t2                  --double-strand-scaling
-nanocall_option|2ss-t4                  --double-strand-scaling
-nanocall_option|2ss-t8                  --double-strand-scaling
-# train stop options
-nanocall_option|2ss-maxr_02             --double-strand-scaling --scaling-max-rounds 2
-nanocall_option|2ss-maxr_03             --double-strand-scaling --scaling-max-rounds 3
-nanocall_option|2ss-maxr_04             --double-strand-scaling --scaling-max-rounds 4
-nanocall_option|2ss-maxr_05             --double-strand-scaling --scaling-max-rounds 5
-nanocall_option|2ss-maxr_10             --double-strand-scaling --scaling-max-rounds 10
-nanocall_option|2ss-maxr_15             --double-strand-scaling --scaling-max-rounds 15
-nanocall_option|2ss-maxr_20             --double-strand-scaling --scaling-max-rounds 20
-nanocall_option|2ss-minp_05             --double-strand-scaling --scaling-min-progress 0.5
-nanocall_option|2ss-minp_10             --double-strand-scaling --scaling-min-progress 1.0
-nanocall_option|2ss-minp_15             --double-strand-scaling --scaling-min-progress 1.5
-nanocall_option|2ss-minp_20             --double-strand-scaling --scaling-min-progress 2.0
-nanocall_option|2ss-nume_050            --double-strand-scaling --scaling-num-events 50
-nanocall_option|2ss-nume_100            --double-strand-scaling --scaling-num-events 100
-nanocall_option|2ss-nume_150            --double-strand-scaling --scaling-num-events 150
-nanocall_option|2ss-nume_200            --double-strand-scaling --scaling-num-events 200
-nanocall_option|2ss-nume_250            --double-strand-scaling --scaling-num-events 250
-# default transition options
-nanocall_option|2ss-pstay_09-pskip_26   --double-strand-scaling --pr-stay 0.09 --pr-skip 0.26
-nanocall_option|2ss-pstay_09-pskip_28   --double-strand-scaling --pr-stay 0.09 --pr-skip 0.28
-nanocall_option|2ss-pstay_09-pskip_30   --double-strand-scaling --pr-stay 0.09 --pr-skip 0.30
-nanocall_option|2ss-pstay_09-pskip_32   --double-strand-scaling --pr-stay 0.09 --pr-skip 0.32
-nanocall_option|2ss-pstay_10-pskip_26   --double-strand-scaling --pr-stay 0.10 --pr-skip 0.26
-nanocall_option|2ss-pstay_10-pskip_28   --double-strand-scaling --pr-stay 0.10 --pr-skip 0.28
-nanocall_option|2ss-pstay_10-pskip_30   --double-strand-scaling --pr-stay 0.10 --pr-skip 0.30
-nanocall_option|2ss-pstay_10-pskip_32   --double-strand-scaling --pr-stay 0.10 --pr-skip 0.32
-nanocall_option|2ss-pstay_11-pskip_26   --double-strand-scaling --pr-stay 0.11 --pr-skip 0.26
-nanocall_option|2ss-pstay_11-pskip_28   --double-strand-scaling --pr-stay 0.11 --pr-skip 0.28
-nanocall_option|2ss-pstay_11-pskip_30   --double-strand-scaling --pr-stay 0.11 --pr-skip 0.30
-nanocall_option|2ss-pstay_11-pskip_32   --double-strand-scaling --pr-stay 0.11 --pr-skip 0.32
+nanocall_option|fast|cmd                    --no-train
+nanocall_option|1ss-no_tt|cmd               --single-strand-scaling --no-train-transitions
+nanocall_option|1ss|cmd                     --single-strand-scaling
+nanocall_option|2ss-no_tt|cmd               --double-strand-scaling --no-train-transitions
+nanocall_option|2ss|cmd                     --double-strand-scaling
+# threads options
+nanocall_option|2ss-t1|cmd                  --double-strand-scaling
+nanocall_option|2ss-t1|threads              1
+nanocall_option|2ss-t2|cmd                  --double-strand-scaling
+nanocall_option|2ss-t2|threads              2
+nanocall_option|2ss-t4|cmd                  --double-strand-scaling
+nanocall_option|2ss-t4|threads              4
+nanocall_option|2ss-t8|cmd                  --double-strand-scaling
+nanocall_option|2ss-t8|threads              8
+# train_stop options
+nanocall_option|2ss-maxr_02|cmd             --double-strand-scaling --scaling-max-rounds 2
+nanocall_option|2ss-maxr_03|cmd             --double-strand-scaling --scaling-max-rounds 3
+nanocall_option|2ss-maxr_04|cmd             --double-strand-scaling --scaling-max-rounds 4
+nanocall_option|2ss-maxr_05|cmd             --double-strand-scaling --scaling-max-rounds 5
+nanocall_option|2ss-maxr_10|cmd             --double-strand-scaling --scaling-max-rounds 10
+nanocall_option|2ss-maxr_15|cmd             --double-strand-scaling --scaling-max-rounds 15
+nanocall_option|2ss-maxr_20|cmd             --double-strand-scaling --scaling-max-rounds 20
+nanocall_option|2ss-minp_05|cmd             --double-strand-scaling --scaling-min-progress 0.5
+nanocall_option|2ss-minp_10|cmd             --double-strand-scaling --scaling-min-progress 1.0
+nanocall_option|2ss-minp_15|cmd             --double-strand-scaling --scaling-min-progress 1.5
+nanocall_option|2ss-minp_20|cmd             --double-strand-scaling --scaling-min-progress 2.0
+nanocall_option|2ss-nume_050|cmd            --double-strand-scaling --scaling-num-events 50
+nanocall_option|2ss-nume_100|cmd            --double-strand-scaling --scaling-num-events 100
+nanocall_option|2ss-nume_150|cmd            --double-strand-scaling --scaling-num-events 150
+nanocall_option|2ss-nume_200|cmd            --double-strand-scaling --scaling-num-events 200
+nanocall_option|2ss-nume_250|cmd            --double-strand-scaling --scaling-num-events 250
+# default_transitions options
+nanocall_option|2ss-pstay_09-pskip_26|cmd   --double-strand-scaling --pr-stay 0.09 --pr-skip 0.26
+nanocall_option|2ss-pstay_09-pskip_28|cmd   --double-strand-scaling --pr-stay 0.09 --pr-skip 0.28
+nanocall_option|2ss-pstay_09-pskip_30|cmd   --double-strand-scaling --pr-stay 0.09 --pr-skip 0.30
+nanocall_option|2ss-pstay_09-pskip_32|cmd   --double-strand-scaling --pr-stay 0.09 --pr-skip 0.32
+nanocall_option|2ss-pstay_10-pskip_26|cmd   --double-strand-scaling --pr-stay 0.10 --pr-skip 0.26
+nanocall_option|2ss-pstay_10-pskip_28|cmd   --double-strand-scaling --pr-stay 0.10 --pr-skip 0.28
+nanocall_option|2ss-pstay_10-pskip_30|cmd   --double-strand-scaling --pr-stay 0.10 --pr-skip 0.30
+nanocall_option|2ss-pstay_10-pskip_32|cmd   --double-strand-scaling --pr-stay 0.10 --pr-skip 0.32
+nanocall_option|2ss-pstay_11-pskip_26|cmd   --double-strand-scaling --pr-stay 0.11 --pr-skip 0.26
+nanocall_option|2ss-pstay_11-pskip_28|cmd   --double-strand-scaling --pr-stay 0.11 --pr-skip 0.28
+nanocall_option|2ss-pstay_11-pskip_30|cmd   --double-strand-scaling --pr-stay 0.11 --pr-skip 0.30
+nanocall_option|2ss-pstay_11-pskip_32|cmd   --double-strand-scaling --pr-stay 0.11 --pr-skip 0.32
+
+nanocall_option_pack|main               fast 1ss-no_tt 1ss 2ss-no_tt 2ss
+nanocall_option_pack|threads            2ss-t1 2ss-t2 2ss-t4 2ss-t8
+nanocall_option_pack|train_stop         2ss-maxr_02 2ss-maxr_03 2ss-maxr_04 2ss-maxr_05 2ss-maxr_10 2ss-maxr_15 2ss-maxr_20 2ss-minp_05 2ss-minp_10 2ss-minp_15 2ss-minp_20 2ss-nume_050 2ss-nume_100 2ss-nume_150 2ss-nume_200 2ss-nume_250
+nanocall_option_pack|default_transitions 2ss-pstay_10-pskip_26 2ss-pstay_10-pskip_28 2ss-pstay_10-pskip_30 2ss-pstay_10-pskip_32 2ss-pstay_09-pskip_26 2ss-pstay_09-pskip_28 2ss-pstay_09-pskip_30 2ss-pstay_09-pskip_32 2ss-pstay_11-pskip_26 2ss-pstay_11-pskip_28 2ss-pstay_11-pskip_30 2ss-pstay_11-pskip_32

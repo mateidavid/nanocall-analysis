@@ -2,6 +2,10 @@
 MAKEFLAGS += -r
 SHELL := /bin/bash
 
+.PHONY: all list clean cleanall help
+
+all:
+
 # real path to this Makefile
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 include ${ROOT_DIR}/common.make
@@ -35,9 +39,9 @@ help: ## This help.
 #
 # HDF5
 #
-HDF5_URL = $(call get_tag_value,url,*,hdf5)
-HDF5_MD5SUM = $(call get_tag_value,md5sum,*,hdf5)
-HDF5_DIRNAME = $(call get_tag_value,dirname,*,hdf5)
+HDF5_URL = $(call keymap_val,software|hdf5|url)
+HDF5_MD5SUM = $(call keymap_val,software|hdf5|md5sum)
+HDF5_DIRNAME = $(call keymap_val,software|hdf5|dirname)
 #
 # download & unpack
 $(eval $(call get_url,${HDF5_URL},${HDF5_MD5SUM},${SRC_DIR}/${HDF5_DIRNAME}))
@@ -76,9 +80,9 @@ python3.version: ${PYTHON3}
 #
 # BWA
 #
-BWA_URL = $(call get_tag_value,url,*,bwa)
-BWA_MD5SUM = $(call get_tag_value,md5sum,*,bwa)
-BWA_DIRNAME = $(call get_tag_value,dirname,*,bwa)
+BWA_URL = $(call keymap_val,software|bwa|url)
+BWA_MD5SUM = $(call keymap_val,software|bwa|md5sum)
+BWA_DIRNAME = $(call keymap_val,software|bwa|dirname)
 BWA_MAKE_OPTS = 
 #
 # download and unpack
@@ -100,9 +104,9 @@ bwa.version: ${BWA}
 #
 # Samtools
 #
-SAMTOOLS_URL = $(call get_tag_value,url,*,samtools)
-SAMTOOLS_MD5SUM = $(call get_tag_value,md5sum,*,samtools)
-SAMTOOLS_DIRNAME = $(call get_tag_value,dirname,*,samtools)
+SAMTOOLS_URL = $(call keymap_val,software|samtools|url)
+SAMTOOLS_MD5SUM = $(call keymap_val,software|samtools|md5sum)
+SAMTOOLS_DIRNAME = $(call keymap_val,software|samtools|dirname)
 #
 # download & unpack
 $(eval $(call get_url,${SAMTOOLS_URL},${SAMTOOLS_MD5SUM},${SRC_DIR}/${SAMTOOLS_DIRNAME}))
@@ -125,7 +129,7 @@ samtools.version: ${SAMTOOLS}
 #
 NANOCALL_DIR = ${SRC_DIR}/nanocall
 NANOCALL_BUILD_DIR = ${NANOCALL_DIR}/build
-NANOCALL_GIT = $(call get_tag_value,url,*,nanocall)
+NANOCALL_GIT = $(call keymap_val,software|nanocall|url)
 NANOCALL_CMAKE_OPTS = -DHDF5_ROOT=${HDF5_ROOT}
 NANOCALL_MAKE_OPTS =
 #
@@ -160,18 +164,18 @@ nanocall.version: ${NANOCALL}
 human--reference: human.fa human.fa.fai
 ${DATA_DIR}/human.fa:
 	mkdir -p ${DATA_DIR}; \
-	url="$(call get_tag_value,reference_fa,*,human)"; \
+	url="$(call keymap_val,reference|human|url)"; \
 	cache_url="${CACHE_DIR}/$$(basename "$$url")"; \
-	md5sum="$(call get_tag_value,md5sum_fa,*,human)"; \
+	md5sum="$(call keymap_val,reference|human|md5sum)"; \
 	for f in "$$url" "$$cache_url"; do \
 	  if [ "$$f" ] && [ -r "$$f" ]; then \
 	    ln -sf "$$(readlink -e "$$f")" $@; \
 	    break; \
 	  fi; \
 	done; \
-	if [ ! -r $@ ]; then \
+	if ! [ -r $@ ]; then \
 	  wget -L "$url" -O "$$cache_url"; \
-	  [ ! "$md5sum" ] || [ "$$(md5sum <"$$cache_url" | awk '{print $$1}')" = "$$md5sum" ]; \
+	  ! [ "$md5sum" ] || [ "$$(md5sum <"$$cache_url" | awk '{print $$1}')" = "$$md5sum" ]; \
 	  zcat -f "$$cache_url" >$@; \
 	fi
 human.fa: ${HUMAN_REFERENCE}
@@ -183,9 +187,9 @@ human.fa: ${HUMAN_REFERENCE}
 ecoli--reference: ecoli.fa ecoli.fa.fai
 ${DATA_DIR}/ecoli.fa:
 	mkdir -p ${DATA_DIR}; \
-	url="$(call get_tag_value,reference_fa,*,ecoli)"; \
+	url="$(call keymap_val,reference|ecoli|url)"; \
 	cache_url="${CACHE_DIR}/$$(basename "$$url")"; \
-	md5sum="$(call get_tag_value,md5sum_fa,*,ecoli)"; \
+	md5sum="$(call keymap_val,reference|ecoli|md5sum)"; \
 	for f in "$$url" "$$cache_url"; do \
 	  if [ "$$f" ] && [ -r "$$f" ]; then \
 	    ln -sf "$$(readlink -e "$$f")" $@; \
@@ -219,28 +223,24 @@ BWA_INDEX_EXT := bwt pac ann amb sa
 define make_bwa_index
 .PHONY: ${1}--bwa-index
 ${1}--bwa-index: ${1}--reference $(foreach ext,${BWA_INDEX_EXT},${1}.fa.${ext}) ${BWA}
-${1}.fa.bwt: ${2}
-	have_all=1; \
-	for ext in ${BWA_INDEX_EXT}; do \
-	  [ -r ${2}.$$$${ext} ] || { have_all=; break; }; \
-	done; \
-	if [ $$$${have_all} ]; then \
-	  for ext in ${BWA_INDEX_EXT}; do \
-	    ln -sf ${2}.$$$${ext} $$(@:.bwt=).$$$${ext}; \
-	  done; \
-	else \
-	  ${BWA} index ${1}.fa; \
-	fi
+${1}.fa.bwt: ${1}.fa
+# 	have_all=1; \
+# 	for ext in ${BWA_INDEX_EXT}; do \
+# 	  [ -r ${2}.$$$${ext} ] || { have_all=; break; }; \
+# 	done; \
+# 	if [ $$$${have_all} ]; then \
+# 	  for ext in ${BWA_INDEX_EXT}; do \
+# 	    ln -sf ${2}.$$$${ext} $$(@:.bwt=).$$$${ext}; \
+# 	  done; \
+# 	else \
+# 	  ${BWA} index ${1}.fa; \
+# 	fi
 ${1}.fa.pac: ${1}.fa.bwt
 ${1}.fa.ann: ${1}.fa.bwt
 ${1}.fa.amb: ${1}.fa.bwt
 ${1}.fa.sa : ${1}.fa.bwt
 endef
-$(foreach ref,${REFERENCES},\
-  $(eval $(call \
-    make_bwa_index,\
-    ${ref},\
-    $(call get_tag_value,reference_fa,*,${ref}))))
+$(foreach ref,${REFERENCES},$(eval $(call make_bwa_index,${ref})))
 #
 # Last index
 #
@@ -304,7 +304,8 @@ ${1}: ${DATA_DIR}/${4}
 	ln -sf "$$<" $$@
 endef
 $(foreach ds,${DATASETS},\
-$(eval $(call make_data_dir,${ds},$(call get_tag_value,url,*,${ds}),$(call get_tag_value,md5sum,*,${ds}),$(call get_tag_value,dirname,*,${ds}))))
+$(eval $(call make_data_dir,${ds},$(call keymap_val,dataset|${ds}|url),$(call keymap_val,dataset|${ds}|md5sum),$(call keymap_val,dataset|${ds}|dirname))))
+
 #
 # fofn: all
 #
@@ -318,7 +319,7 @@ $(foreach ds,${DATASETS},$(eval $(call make_all_fofn,${ds})))
 #
 define make_dss_fofn
 ${1}.${2}.fofn: ${1}.all.fofn
-	cat $$< | eval "$(call get_tag_value,subset,${1},${2})" >$$@
+	cat $$< | eval "$(call keymap_val,subset|${2})" >$$@
 endef
 $(foreach dss,$(shell echo "${DATASUBSETS}" | tr ' ' '\n' | grep -v "\.all$$" | tr '\n' ' '),\
   $(eval $(call make_dss_fofn,$(call get_dss_ds,${dss}),$(call get_dss_ss,${dss}))))

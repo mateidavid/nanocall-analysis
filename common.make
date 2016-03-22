@@ -1,3 +1,6 @@
+# real path to this Makefile
+ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+
 # do not leave failed files around
 .DELETE_ON_ERROR:
 # do not delete intermediate files
@@ -21,34 +24,43 @@ GZIP := $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; f
 HUMAN_REFERENCE = ${DATA_DIR}/human.fa
 ECOLI_REFERENCE = ${DATA_DIR}/ecoli.fa
 
-KEYS := ${ROOT_DIR}/KEYS \
+KEYMAP_FILES := \
+	${ROOT_DIR}/KEYS \
 	$(shell [ -r ${ROOT_DIR}/KEYS.local ] && echo ${ROOT_DIR}/KEYS.local) \
 	$(shell [ -r KEYS.local ] && echo KEYS.local)
 
-include keymap.make
+include ${ROOT_DIR}/keymap.make
 
-TAGS := $(shell [ -r TAGS.local ] && echo TAGS.local) \
-	$(shell [ -r ${ROOT_DIR}/TAGS.local ] && echo ${ROOT_DIR}/TAGS.local) \
-	${ROOT_DIR}/TAGS
-get_tag_list = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") {print $$3}')
-get_tag_value = $(shell cat ${TAGS} | grep -v "^ *\#" | awk '$$1=="${1}" && ($$2=="${2}" || $$2=="*") && $$3=="${3}" {for (i=4;i<=NF;++i) $$(i-3)=$$i; NF-=3; print}' | head -n 1)
-
-get_ds_reference = $(call get_tag_value,reference,${1},reference)
-get_ds_subsets = $(call get_tag_list,subset,${1})
-get_ds_mappers = $(call get_tag_list,mapper,${1})
+get_ds_reference = $(call keymap_val,dataset|${1}|reference)
+get_ds_subsets = $(or $(call keymap_val,dataset|${1}|subsets),$(call keymap_key_list,subset))
+get_ds_mappers = $(or \
+	$(call keymap_key_list,dataset|${1}|mapper_option_list),\
+	$(call keymap_key_list,mapper_option))
+get_ds_mapper_opt_list = $(or \
+	$(call keymap_val,dataset|${1}|mapper_option_list|${2}),\
+	$(call keymap_key_list,mapper_option|${2}))
+get_ds_nanocall_opt_list = $(or \
+	$(call keymap_val,dataset|${1}|nanocall_option_list), \
+	$(call keymap_key_list,nanocall_option))
+get_ds_nanocall_opt_pack_list = $(or \
+	$(call keymap_val,dataset|${1}|nanocall_option_pack_list), \
+	$(call keymap_key_list,nanocall_option_pack))
 
 get_dss_ds = $(word 1,$(subst ., ,${1}))
 get_dss_ss = $(word 2,$(subst ., ,${1}))
 get_dss_reference = $(call get_ds_reference,$(call get_dss_ds,${1}))
 get_dss_mappers = $(call get_ds_mappers,$(call get_dss_ds,${1}))
 
-get_run_threads = $(shell num="$(call get_tag_value,num_threads,*,${1})"; echo "$${num:-${THREADS}}")
+get_mapper_opt_cmd = $(call keymap_val,mapper_option|${1}|${2})
+get_nanocall_opt_cmd = $(call keymap_val,nanocall_option|${1}|cmd)
+get_nanocall_opt_threads = $(or $(call keymap_val,nanocall_option|${1}|threads),${THREADS})
+get_pack_nanocall_opt_list = $(call keymap_val,nanocall_option_pack|${1})
 
 remove_duplicates = $(shell echo "${1}" | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
 to_upper  = $(shell echo "${1}" | tr '[:lower:]' '[:upper:]')
 
-DATASETS = $(call get_tag_list,dataset,*)
-REFERENCES = $(call remove_duplicates,$(foreach ds,${DATASETS},$(call get_ds_reference,${ds})))
+DATASETS = $(call keymap_key_list,dataset)
+REFERENCES = $(call keymap_key_list,reference)
 DATASUBSETS = $(foreach ds,${DATASETS},${ds}.all $(foreach ss,$(call get_ds_subsets,${ds}),${ds}.${ss}))
 
 # add rules to download and unpack source tarball

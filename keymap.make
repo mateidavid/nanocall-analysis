@@ -5,8 +5,12 @@ SHELL := /bin/bash
 .PHONY: keymap-list-keys keymap-list-key-prefixes
 
 # set keymap options
+ifndef KEYMAP_FILES
 KEYMAP_FILES = KEYS
+endif
+ifndef KEYMAP_PREFIX
 KEYMAP_PREFIX = KEYMAP
+endif
 
 # load keymap
 cat_keymap_file := "cat ${KEYMAP_FILES} | egrep -v \"^ *($$|\#)\""
@@ -22,13 +26,13 @@ KEYMAP_KEY_PREFIX_LIST := $(foreach kp,${KEYMAP_KEY_PREFIX_LIST_DELIMITED},$(pat
 # initialize prefix lists
 $(foreach kp,${KEYMAP_KEY_PREFIX_LIST_DELIMITED},$(eval $(shell { echo "${KEYMAP_PREFIX}${kp} := "; eval ${cat_keymap_file} | awk -v kp="$(patsubst |%,%,${kp})" 'BEGIN{kp_len=length(kp)} substr($$1,1,kp_len)==kp {s=substr($$1,kp_len+1); n=split(s,a,"|"); print a[1];}' | sort | uniq; })))
 
-key_val = $(${KEYMAP_PREFIX}|${1})
-key_prefix_val = $($(if ${1},${KEYMAP_PREFIX}|${1}|,${KEYMAP_PREFIX}|))
+keymap_val = $(${KEYMAP_PREFIX}|${1})
+keymap_key_list = $($(if ${1},${KEYMAP_PREFIX}|${1}|,${KEYMAP_PREFIX}|))
 
 keymap-list-keys:
 	@echo "KEYMAP_KEY_LIST=${KEYMAP_KEY_LIST}"
-	@$(foreach key,${KEYMAP_KEY_LIST},echo "KEY ${key} = \"$(call key_val,${key})\"";)
+	@$(foreach key,${KEYMAP_KEY_LIST},echo "KEY ${key} = \"$(call keymap_val,${key})\"";)
 
 keymap-list-key-prefixes:
 	@echo "KEYMAP_KEY_PREFIX_LIST=${KEYMAP_KEY_PREFIX_LIST}"
-	@$(foreach kp,${KEYMAP_KEY_PREFIX_LIST},echo "KEY_PREFIX ${kp} = \"$(call key_prefix_val,${kp})\"";)
+	@$(foreach kp,${KEYMAP_KEY_PREFIX_LIST},echo "KEY_PREFIX ${kp} = \"$(call keymap_key_list,${kp})\"";)
