@@ -51,7 +51,7 @@ def add_subplot_axes(ax, rect, axisbg='w'):
     x = infig_position[0]
     y = infig_position[1]
     width *= rect[2]
-    height *= rect[3]  # <= Typo was here
+    height *= rect[3]
     subax = fig.add_axes([x,y,width,height],axisbg=axisbg)
     #x_labelsize = subax.get_xticklabels()[0].get_size()
     #y_labelsize = subax.get_yticklabels()[0].get_size()
@@ -102,7 +102,7 @@ def plot_id_vs_aln(fig_num, data, names):
             y = [d[rid][rt]['frac_align'] for rid in d if d[rid][rt]['correct']]
             artist = ax.hexbin(x, y, cmap=cm_dict[rt], norm=nm, gridsize=50, mincnt=1, extent=(0,1,0,1))
             if i == len(data) - 1:
-                cax = add_subplot_axes(ax, [0.1, 0.15, 0.8, 0.05])
+                cax = add_subplot_axes(ax, [0.1, -0.15, 0.8, 0.05])
                 fig.colorbar(artist, cax=cax, orientation='horizontal')
     return fig
 
@@ -110,13 +110,14 @@ def plot_n_vs_m(fig_num, data, names, idx, idx_tag, vs_2d, subplot_kw={}, cb_top
     cm_list = ['Blues', 'Reds']
     nm = matplotlib.colors.BoundaryNorm([0] + [10**i for i in range(5)], 256)
     subplot_kw.update({
-        'aspect': 'equal'
+        'aspect': 'equal',
+        'adjustable': 'box-forced'
         })
     fig, ax_a = plt.subplots(
         len(data), 2, sharex=True, sharey=True, squeeze=False,
         gridspec_kw={ 'hspace': .1, 'wspace': .1 },
         subplot_kw=subplot_kw,
-        num=fig_num, figsize=(10, 5 * len(data)))
+        num=fig_num, figsize=(12, 5 * len(data)))
     fig.suptitle('Nanocall vs Metrichor ' + ['same strand', '2D'][vs_2d] + ': ' + idx_tag)
     fig.text(0.5, 0.04, 'Metrichor', ha='center', va='center')
     fig.text(0.06, 0.5, 'Nanocall', ha='center', va='center', rotation='vertical')
@@ -137,7 +138,7 @@ def plot_n_vs_m(fig_num, data, names, idx, idx_tag, vs_2d, subplot_kw={}, cb_top
             y = [d[rid][y_rt][idx] for rid in d if d[rid][x_rt]['correct'] and d[rid][y_rt]['correct']]
             artist = ax.hexbin(x, y, cmap=cm_list[st], norm=nm, gridsize=50, mincnt=1)
             if (cb_top and i == 0) or (not cb_top and i == len(data) - 1):
-                cax = add_subplot_axes(ax, [0.1, [0.15, 0.9][cb_top], 0.8, 0.05])
+                cax = add_subplot_axes(ax, [0.1, [-0.15, 0.9][cb_top], 0.8, 0.05])
                 fig.colorbar(artist, cax=cax, orientation='horizontal')
     return fig
 
@@ -145,13 +146,16 @@ def plot_n_vs_m_params(fig_num, data, names, idx, idx_tag, subplot_kw={}, cb_top
     cm_list = ['Blues', 'Reds']
     nm = matplotlib.colors.BoundaryNorm([0] + [10**i for i in range(5)], 256)
     subplot_kw.update({
-        'aspect': 'equal'
+        'aspect': 'equal',
+        'adjustable': 'box-forced'
         })
     fig, ax_a = plt.subplots(
         len(data), 2, sharex=True, sharey=True, squeeze=False,
-        gridspec_kw={ 'hspace': .1, 'wspace': .1 },
+        gridspec_kw={ 'hspace': .1, 'wspace': .1 }, #'left': .125, 'right': .9 },
         subplot_kw=subplot_kw,
-        num=fig_num, figsize=(10, 5 * len(data)))
+        num=fig_num, figsize=(12, 5 * len(data)))
+    #cax = [fig.add_axes([.2 + .025 + st * .3, .06, .25, .01]) for st in range(2)]
+    #plt.subplots_adjust(left=.2, right=.8)
     fig.suptitle('Nanocall vs Metrichor: ' + idx_tag)
     fig.text(0.5, 0.04, 'Metrichor', ha='center', va='center')
     fig.text(0.06, 0.5, 'Nanocall', ha='center', va='center', rotation='vertical')
@@ -176,8 +180,9 @@ def plot_n_vs_m_params(fig_num, data, names, idx, idx_tag, subplot_kw={}, cb_top
                                extent=(subplot_kw['xlim'][0], subplot_kw['xlim'][1],
                                        subplot_kw['ylim'][0], subplot_kw['ylim'][1]))
             if (cb_top and i == 0) or (not cb_top and i == len(data) - 1):
-                cax = add_subplot_axes(ax, [0.1, [0.15, 0.9][cb_top], 0.8, 0.05])
+                cax = add_subplot_axes(ax, [0.1, [-0.15, 0.9][cb_top], 0.8, 0.05])
                 fig.colorbar(artist, cax=cax, orientation='horizontal')
+                pass
     return fig
 
 def load_bam_summary(fn):
@@ -308,9 +313,9 @@ if __name__ == "__main__":
         'xticks': np.arange(0, 30001, 5000),
         'yticks': np.arange(0, 30001, 5000)
         }
-    plot_n_vs_m(1, data, name, 'read_len', 'Read Length', False, subplot_kw=subplot_kw, cb_top=True)
+    plot_n_vs_m(1, data, name, 'read_len', 'Read Length', False, subplot_kw=subplot_kw)
     plt.savefig('n_vs_m_read_len.' + args.format, dpi=300)
-    plot_n_vs_m(2, data, name, 'read_len', 'Read Length', True, subplot_kw=subplot_kw, cb_top=True)
+    plot_n_vs_m(2, data, name, 'read_len', 'Read Length', True, subplot_kw=subplot_kw)
     plt.savefig('n_vs_m2d_read_len.' + args.format, dpi=300)
 
     # plot nanocall vs metrichor fraction aligned

@@ -4,8 +4,8 @@ join -t$'\t' <(sort ${1}) <(sort ${2}) |
 join -t$'\t' - <(sort ${3}) |
 sort -k5n |
 cut -f 1,4,5,30,31,42 |
+${ROOT_DIR}/highlight-columns |
 sed 's/\t/ \& /g' |
-#awk '{if (last!="") print last " \\\\"; last=$0} END{if (last!="") print last}' |
 sed 's/$/ \\\\/' |
 sed 's/_/\\_/' |
 awk '{$1 = " & \\texttt{" $1 "}"; print}'

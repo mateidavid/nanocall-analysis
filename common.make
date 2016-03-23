@@ -1,34 +1,32 @@
-# real path to this Makefile
-ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+ifndef ROOT_DIR
+$(error Do not use this makefile directly)
+endif
 
-# do not leave failed files around
-.DELETE_ON_ERROR:
-# do not delete intermediate files
-#.SECONDARY:
-# fake targets
-.PHONY: all list clean cleanall help
-
+#
+# Analysis dirs
+#
 TOOLS_DIR := ${PWD}/tools
 SRC_DIR := ${PWD}/src
 CACHE_DIR := ${PWD}/cache
 DATA_DIR := ${PWD}/data
-
+#
+# Analysis tools and data
+#   Can be overriden
+#
 HDF5_ROOT = ${TOOLS_DIR}
 PYTHON3 = ${TOOLS_DIR}/bin/python3
 NANOCALL = ${TOOLS_DIR}/bin/nanocall
 BWA = ${TOOLS_DIR}/bin/bwa
 SAMTOOLS = ${TOOLS_DIR}/bin/samtools
-
-GZIP := $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; fi)
-
 HUMAN_REFERENCE = ${DATA_DIR}/human.fa
 ECOLI_REFERENCE = ${DATA_DIR}/ecoli.fa
 
-KEYMAP_FILES := \
-	${ROOT_DIR}/KEYS \
-	$(shell [ -r ${ROOT_DIR}/KEYS.local ] && echo ${ROOT_DIR}/KEYS.local) \
-	$(shell [ -r KEYS.local ] && echo KEYS.local)
+GZIP := $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; fi)
+THREADS = 14
 
+#
+# Keymap store
+#
 include ${ROOT_DIR}/keymap.make
 
 get_ds_reference = $(call keymap_val,dataset|${1}|reference)
@@ -45,6 +43,7 @@ get_ds_nanocall_opt_list = $(or \
 get_ds_nanocall_opt_pack_list = $(or \
 	$(call keymap_val,dataset|${1}|nanocall_option_pack_list), \
 	$(call keymap_key_list,nanocall_option_pack))
+get_ds_name = $(or $(call keymap_val,dataset|${1}|name),${1})
 
 get_dss_ds = $(word 1,$(subst ., ,${1}))
 get_dss_ss = $(word 2,$(subst ., ,${1}))
@@ -56,12 +55,11 @@ get_nanocall_opt_cmd = $(call keymap_val,nanocall_option|${1}|cmd)
 get_nanocall_opt_threads = $(or $(call keymap_val,nanocall_option|${1}|threads),${THREADS})
 get_pack_nanocall_opt_list = $(call keymap_val,nanocall_option_pack|${1})
 
-remove_duplicates = $(shell echo "${1}" | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
-to_upper  = $(shell echo "${1}" | tr '[:lower:]' '[:upper:]')
-
 DATASETS = $(call keymap_key_list,dataset)
 REFERENCES = $(call keymap_key_list,reference)
 DATASUBSETS = $(foreach ds,${DATASETS},${ds}.all $(foreach ss,$(call get_ds_subsets,${ds}),${ds}.${ss}))
+
+DETAILED_FIGURES_RUNS = $(call keymap_val,export|detailed_figures_runs)
 
 # add rules to download and unpack source tarball
 # 1 = URL / file
