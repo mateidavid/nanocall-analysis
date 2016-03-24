@@ -28,15 +28,15 @@ define run_bwa_unpaired
 # parameters:
 # 1 = destination bam file
 # 2 = input files
-# 3 = index prefix
+# 3 = reference
 # 4 = bwa options
 # 5 = number of threads
 # 6 = RAM request
-${1}: ${2} ${3}.bwt | bwa.version ${3}--bwa-index
+${1}: ${2} | bwa.version ${3}--bwa-index
 	SGE_RREQ="-N $$@ -pe smp ${5} -l h_tvmem=${6}" :; \
 	{ \
 	  zcat -f ${2} | \
-	  ${BWA} mem -t ${5} ${4} ${3} - | \
+	  ${BWA} mem -t ${5} ${4} ${3}.fa - | \
 	  ${PYTHON3} ${ROOT_DIR}/bam-filter-best-alignment; \
 	} >$$@ 2>.$$@.log
 ${1}.summary.tsv: ${1}
@@ -47,7 +47,7 @@ endef
 # parameters:
 # 1 = ds
 # 2 = ss
-# 3 = ref_fa
+# 3 = ref
 # 4 = bwa_opts_tag
 run_bwa_metrichor_fq = $(call run_bwa_unpaired,${1}.${2}.metrichor.bwa~${4}.bam,$(foreach st,0 1 2,${1}.${2}.metrichor.${st}.fq.gz),${3},$(call get_mapper_opt_cmd,bwa,${4}),${THREADS},14G)
 
@@ -56,13 +56,13 @@ $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach ref,$(call get_ds_reference,${ds}),\
 $(foreach bwa_opts,$(call get_ds_mapper_opt_list,${ds},bwa),\
-$(eval $(call run_bwa_metrichor_fq,${ds},${ss},${ref}.fa,${bwa_opts})))))))
+$(eval $(call run_bwa_metrichor_fq,${ds},${ss},${ref},${bwa_opts})))))))
 
 # parameters:
 # 1 = ds
 # 2 = ss
 # 3 = nanocall_opts_tag
-# 4 = ref_fa
+# 4 = ref
 # 5 = bwa_opts_tag
 run_bwa_nanocall_fa = $(call run_bwa_unpaired,${1}.${2}.nanocall~${3}.bwa~${5}.bam,${1}.${2}.nanocall~${3}.fa.gz,${4},$(call get_mapper_opt_cmd,bwa,${5}),${THREADS},14G)
 
@@ -72,7 +72,7 @@ $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach ref,$(call get_ds_reference,${ds}),\
 $(foreach nanocall_opts,$(call get_ds_nanocall_opt_list,${ds}),\
 $(foreach bwa_opts,$(call get_ds_mapper_opt_list,${ds},bwa),\
-$(eval $(call run_bwa_nanocall_fa,${ds},${ss},${nanocall_opts},${ref}.fa,${bwa_opts}))))))))
+$(eval $(call run_bwa_nanocall_fa,${ds},${ss},${nanocall_opts},${ref},${bwa_opts}))))))))
 
 define run_nanocall
 # parameters:

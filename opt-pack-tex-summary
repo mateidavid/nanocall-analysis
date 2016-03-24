@@ -1,11 +1,10 @@
 #!/bin/bash
+set -eEu
 
 join -t$'\t' <(sort ${1}) <(sort ${2}) |
 join -t$'\t' - <(sort ${3}) |
 sort -k5n |
 cut -f 1,4,5,30,31,42 |
 ${ROOT_DIR}/highlight-columns |
-sed 's/\t/ \& /g' |
-sed 's/$/ \\\\/' |
-sed 's/_/\\_/' |
-awk '{$1 = " & \\texttt{" $1 "}"; print}'
+sed 's/\t/\t\&\t/g;s/_/\\_/g;s/$/\t\\\\/' |
+awk -F$'\t' -v OFS=$'\t' '{$1 = "\t&\t\\texttt{" $1 "}"; print}'

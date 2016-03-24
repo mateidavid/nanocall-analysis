@@ -8,7 +8,7 @@ EXPORT_FORMATS = pdf png
 EXPORT_TARGETS = $(foreach fmt,${EXPORT_FORMATS},figures-${fmt}) tables
 
 tables: $(foreach ds,${DATASETS},exports/table_main_${ds}_pass_10000.tex) \
-	exports/table_transition_params_human_pcr_1_pass_1000.tex \
+	exports/table_default_transitions_human_pcr_1_pass_1000.tex \
 	exports/table_train_stop_human_pcr_1_pass_1000.tex
 
 define make_table_main
@@ -17,37 +17,58 @@ define make_table_main
 exports/table_main_${1}_${2}.tex: \
 	${1}.${2}.summary.main.map_pos.tsv \
 	${1}.${2}.summary.main.errors.tsv \
-	${1}.${2}.summary.main.runtime.tsv
+	${1}.${2}.summary.main.runtime.tsv \
+	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/opt-pack-tex-summary $$^ >$$@ 2>.$$@.log
+	{ \
+	  ROOT_DIR="${ROOT_DIR}" ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
+	  column -t; \
+	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
 endef
-$(foreach ds,${DATASETS},$(eval $(call make_table_main,${ds},pass_10000)))
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(eval $(call make_table_main,${ds},${ss})))))
 
 define make_table_transition_params
 # 1: ds
 # 2: ss
-exports/table_transition_params_${1}_${2}.tex: \
-	${1}.${2}.summary.main.map_pos.tsv \
-	${1}.${2}.summary.main.errors.tsv \
-	${1}.${2}.summary.main.runtime.tsv
+exports/table_default_transitions_${1}_${2}.tex: \
+	${1}.${2}.summary.default_transitions.map_pos.tsv \
+	${1}.${2}.summary.default_transitions.errors.tsv \
+	${1}.${2}.summary.default_transitions.runtime.tsv \
+	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/opt-pack-tex-summary $$^ | \
-	awk '{$$$$1=""; $$$$11=""; $$$$12=""; print}' >$$@ 2>.$$@.log
+	{ \
+	  ROOT_DIR="${ROOT_DIR}" ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
+	  cut -f 3-11,14 | \
+	  column -t; \
+	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
 endef
-$(eval $(call make_table_transition_params,human_pcr_1,pass_1000))
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(eval $(call make_table_transition_params,${ds},${ss})))))
 
 define make_table_train_stop
 # 1: ds
 # 2: ss
 exports/table_train_stop_${1}_${2}.tex: \
-	${1}.${2}.summary.main.map_pos.tsv \
-	${1}.${2}.summary.main.errors.tsv \
-	${1}.${2}.summary.main.runtime.tsv
+	${1}.${2}.summary.train_stop.map_pos.tsv \
+	${1}.${2}.summary.train_stop.errors.tsv \
+	${1}.${2}.summary.train_stop.runtime.tsv \
+	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/opt-pack-tex-summary $$^ | \
-	awk '{$$$$1=""; print}' >$$@ 2>.$$@.log
+	{ \
+	  ROOT_DIR="${ROOT_DIR}" ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
+	  cut -f 3- | \
+	  column -t; \
+	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
 endef
-$(eval $(call make_table_train_stop,human_pcr_1,pass_1000))
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(eval $(call make_table_train_stop,${ds},${ss})))))
 
 # $(foreach ds,${DATASETS},exports/${ds}.pass_10000.summary.main.tex) \
 # exports/human_pcr_1.pass_1000.summary.default_transitions.tex \
