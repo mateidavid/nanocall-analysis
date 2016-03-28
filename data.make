@@ -27,8 +27,8 @@ ${DATA_DIR}/human.fa:
 	  fi; \
 	done; \
 	if ! [ -r $@ ]; then \
-	  wget -L "$url" -O "$$cache_url"; \
-	  ! [ "$md5sum" ] || [ "$$(md5sum <"$$cache_url" | awk '{print $$1}')" = "$$md5sum" ]; \
+	  wget -L "$$url" -O "$$cache_url"; \
+	  ! [ "$$md5sum" ] || [ "$$(md5sum <"$$cache_url" | awk '{print $$1}')" = "$$md5sum" ]; \
 	  zcat -f "$$cache_url" >$@; \
 	fi
 human.fa: ${HUMAN_REFERENCE}
@@ -50,8 +50,8 @@ ${DATA_DIR}/ecoli.fa:
 	  fi; \
 	done; \
 	if [ ! -r $@ ]; then \
-	  wget -L "$url" -O "$$cache_url"; \
-	  [ ! "$md5sum" ] || [ "$$(md5sum <"$$cache_url" | awk '{print $$1}')" = "$$md5sum" ]; \
+	  wget -L "$$url" -O "$$cache_url"; \
+	  [ ! "$$md5sum" ] || [ "$$(md5sum <"$$cache_url" | awk '{print $$1}')" = "$$md5sum" ]; \
 	  zcat -f "$$cache_url" >$@; \
 	fi
 ecoli.fa: ${ECOLI_REFERENCE}
