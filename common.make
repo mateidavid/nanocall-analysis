@@ -72,7 +72,7 @@ ${CACHE_DIR}/$(shell basename "${1}"):
 	  ln -s "${1}" $$@; \
 	else \
 	  wget -L "${1}" -O $$@ && \
-	  test "$$$$(md5sum <"$$@") | awk '{print $$$$1}')" = "${2}"; \
+	  test "$$$$(md5sum <"$$@" | awk '{print $$$$1}')" = "${2}"; \
 	fi
 ${3}: ${CACHE_DIR}/$(shell basename "${1}")
 	mkdir -p $$$$(dirname ${3}) && \
