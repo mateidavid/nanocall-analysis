@@ -84,16 +84,20 @@ define run_nanocall
 ${1}.fa.gz: ${2} | python3.version nanocall.version
 	SGE_RREQ="-N $$@ -pe smp ${4} -l h_tvmem=${5} -l h_rt=48:0:0 -l s_rt=48:0:0 -q !default" :; \
 	{ \
-	  dir=$$$$(mktemp -d); \
-	  cd $$$$dir; \
-	  rsync -a ${PWD}/${2} ./; \
-	  rsync -a --files-from=${2} ${PWD}/ ./; \
+	  if [ "${CACHE_FILES}" = "1" ]; then \
+	    dir=$$$$(mktemp -d); \
+	    cd $$$$dir; \
+	    rsync -a ${PWD}/${2} ./; \
+	    rsync -a --files-from=${2} ${PWD}/ ./; \
+	  fi; \
 	  ${NANOCALL} -t ${4} ${3} --stats ${1}.stats ${2} 2>${PWD}/${1}.log | \
 	  sed 's/:\([01]\)$$$$/:nanocall:\1/' | \
 	  ${GZIP} >$$@; \
-	  rsync -a $$@ ${1}.stats ${PWD}/; \
-	  cd ${PWD}; \
-	  rm -rf $$$$dir; \
+	  if [ "${CACHE_FILES}" = "1" ]; then \
+	    rsync -a $$@ ${1}.stats ${PWD}/; \
+	    cd ${PWD}; \
+	    rm -rf $$$$dir; \
+	  fi; \
 	} 2>.$$@.log
 ${1}.stats: ${1}.fa.gz
 ${1}.log: ${1}.fa.gz

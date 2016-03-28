@@ -24,6 +24,10 @@ ECOLI_REFERENCE = ${DATA_DIR}/ecoli.fa
 GZIP := $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; fi)
 THREADS = 14
 
+# when set to 1, nanocall inputs are copied to temp dir before each run,
+# and outputs (fa&stats) are written to temp, then copied over
+CACHE_FILES = 1
+
 #
 # Keymap store
 #
