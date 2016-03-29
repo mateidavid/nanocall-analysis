@@ -1,3 +1,0 @@
-[submodule "arq5x-nanopore-scripts"]
-	path = arq5x-nanopore-scripts
-	url = https://github.com/arq5x/nanopore-scripts.git
