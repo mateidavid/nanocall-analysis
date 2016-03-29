@@ -21,7 +21,7 @@ exports/table_main_${1}_${2}.tex: \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
-	  ROOT_DIR="${ROOT_DIR}" ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
+	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
 	  column -t; \
 	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
 endef
@@ -40,7 +40,7 @@ exports/table_default_transitions_${1}_${2}.tex: \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
-	  ROOT_DIR="${ROOT_DIR}" ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
+	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
 	  cut -f 3-11,14 | \
 	  column -t; \
 	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
@@ -60,7 +60,7 @@ exports/table_train_stop_${1}_${2}.tex: \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
-	  ROOT_DIR="${ROOT_DIR}" ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
+	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
 	  cut -f 3- | \
 	  column -t; \
 	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log

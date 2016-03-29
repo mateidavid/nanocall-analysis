@@ -5,6 +5,6 @@ join -t$'\t' <(sort ${1}) <(sort ${2}) |
 join -t$'\t' - <(sort ${3}) |
 sort -k5n |
 cut -f 1,4,5,30,31,42 |
-${ROOT_DIR}/highlight-columns |
+${PYTHON3} ${ROOT_DIR}/highlight-columns |
 sed 's/\t/\t\&\t/g;s/_/\\_/g;s/\<0\././g;s/$/\t\\\\/' |
 awk -F$'\t' -v OFS=$'\t' '{$1 = "\t&\t\\texttt{" $1 "}"; print}'
