@@ -31,7 +31,11 @@ CACHE_FILES = 1
 #
 # Keymap store
 #
-include ${ROOT_DIR}/keymap.make
+KEYMAP_FILES = \
+	${ROOT_DIR}/KEYS \
+	$(shell [ -r ${ROOT_DIR}/KEYS.local ] && echo ${ROOT_DIR}/KEYS.local) \
+	$(shell [ -r KEYS.local ] && echo KEYS.local)
+include ${ROOT_DIR}/keymap/keymap.make
 
 get_ds_reference = $(call keymap_val,dataset|${1}|reference)
 get_ds_subsets = $(or $(call keymap_val,dataset|${1}|subsets),$(call keymap_key_list,subset))
