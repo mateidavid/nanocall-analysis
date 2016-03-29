@@ -1,15 +1,5 @@
 #!/bin/bash
-
-printab () {
-    _delim=$'\t'
-    printf "%s" "$1"
-    shift
-    while [ $# -ge 1 ]; do
-        printf "%s%s" "$_delim" "$1"
-        shift
-    done
-    printf "\n"
-}
+source "$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")"/common.sh
 
 printab "nanocall_tag" "aln" "aln_tag" \
     $(head -n1 "$1" | cut -f 2-) "m_vs_n_error_diff" \

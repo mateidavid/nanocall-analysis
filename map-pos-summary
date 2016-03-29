@@ -1,6 +1,7 @@
 #!/bin/bash
+source "$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")"/common.sh
 
-printf "%s\t%s\t%s\t%s\t%s\t%s\n" "nanocall_tag" "aln" "aln_tag" "m1d_wrong" "n_wrong" "both_wrong"
+printab "nanocall_tag" "aln" "aln_tag" "m1d_wrong" "n_wrong" "both_wrong"
 for f in "$@"; do
     tag=${f#*metrichor+nanocall~}
     nanocall_tag=${tag%%.*}
@@ -12,7 +13,7 @@ for f in "$@"; do
     num_reads_m_mis=$(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($3==0 && $4==0)' | wc -l)
     num_reads_n_mis=$(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($5==0 && $6==0)' | wc -l)
     num_reads_both_mis=$(tail -n+2 ${f} | awk -F '\t' '$2==0 && !($3==0 && $4==0) && !($5==0 && $6==0)' | wc -l)
-    printf "%s\t%s\t%s\t%s\t%s\t%s\n" ${nanocall_tag} ${aln} ${aln_tag} \
+    printab ${nanocall_tag} ${aln} ${aln_tag} \
         $(echo "scale=3; $num_reads_m_mis / $num_reads" | bc) \
         $(echo "scale=3; $num_reads_n_mis / $num_reads" | bc) \
         $(echo "scale=3; $num_reads_both_mis / $num_reads" | bc)

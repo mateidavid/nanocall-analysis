@@ -1,14 +1,8 @@
 #!/bin/bash
-trap 'echo "exit code $?: LINENO=$LINENO BASH_LINENO=\"${BASH_LINENO[@]}\" FUNCNAME=\"${FUNCNAME[@]}\"" >&2' ERR
-set -eEu
+source "$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")"/common.sh
 
-_prog_path=$(readlink -e "${BASH_SOURCE[0]}")
-_prog_name=$(basename "$_prog_path")
-_prog_dir=$(dirname "$_prog_path")
 ROOT_DIR=${ROOT_DIR:-${_prog_dir}}
 DEFAULT_NUM_THREADS=14
-
-source ${_prog_dir}/printab.sh
 
 printab "nanocall_tag" "threads" "training_kbp_per_ch" "basecalling_kbp_per_ch" "total_kbp_per_ch"
 for f in "$@"; do

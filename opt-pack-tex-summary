@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eEu
+source "$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")"/common.sh
 
 join -t$'\t' <(sort ${1}) <(sort ${2}) |
 join -t$'\t' - <(sort ${3}) |

@@ -1,17 +1,7 @@
 #!/bin/bash
+source "$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")"/common.sh
 
 # get scaling & basecalling runtimes from nanocall log file
-
-printab() {
-    _delim=$'\t'
-    printf "%s" "$1"
-    shift
-    while [ $# -ge 1 ]; do
-        printf "%s%s" "$_delim" "$1"
-        shift
-    done
-    printf "\n"
-}
 
 printab "training_wall" "basecalling_wall" "total_wall" \
     "training_cpu" "basecalling_cpu" "total_cpu" \
