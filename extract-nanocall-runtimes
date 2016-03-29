@@ -39,8 +39,8 @@ else
 fi
 
 # extract user cpu time, if available
-for key in training_cpu_time basecalling_cpu_time; do
-    v=$(zcat -f "$1" | grep $key | awk -F= '{print int($NF)}')
+for key in "training user_cpu_secs" "basecalling user_cpu_secs"; do
+    v=$(zcat -f "$1" | grep "$key" | awk -F= '{print int($NF)}')
     [ "$v" ] || v=.
     t+=($v)
 done
