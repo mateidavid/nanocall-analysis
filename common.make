@@ -31,7 +31,7 @@ CACHE_FILES = 1
 #
 # Keymap store
 #
-KEYMAP_FILES = \
+KEYMAP_FILES := \
 	${ROOT_DIR}/KEYS \
 	$(shell [ -r ${ROOT_DIR}/KEYS.local ] && echo ${ROOT_DIR}/KEYS.local) \
 	$(shell [ -r KEYS.local ] && echo KEYS.local)
