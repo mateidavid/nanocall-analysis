@@ -15,25 +15,37 @@ software|nanocall|url                   https://github.com/mateidavid/nanocall.g
 reference|ecoli|url                     ecoli_k12.fasta
 reference|human|url                     ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
 
+dataset|ecoli_1|accession|run           ERR1147227
+dataset|ecoli_1|accession|experiment    ERX1226029
+dataset|ecoli_1|accession|study         ERP007108
 dataset|ecoli_1|url                     ftp://ftp.era.ebi.ac.uk/vol1/ERA540/ERA540530/oxfordnanopore_native/MAP006-1.tar
 dataset|ecoli_1|md5sum                  a6ee1795aa23b136a781fe8638c244f1
 dataset|ecoli_1|dirname                 MAP006-1/MAP006-1_downloads
 dataset|ecoli_1|reference               ecoli
 dataset|ecoli_1|name                    Ecoli
 
+dataset|ecoli_pcr_1|accession|run       ERR1147229
+dataset|ecoli_pcr_1|accession|experiment ERX1226030
+dataset|ecoli_pcr_1|accession|study     ERP007108
 dataset|ecoli_pcr_1|url                 ftp://ftp.era.ebi.ac.uk/vol1/ERA540/ERA540530/oxfordnanopore_native/MAP006-PCR-1.tar
 dataset|ecoli_pcr_1|md5sum              4a2426811464599c3e31e3a7714b8660
 dataset|ecoli_pcr_1|dirname             MAP006-PCR-1/MAP006-PCR_downloads
 dataset|ecoli_pcr_1|reference           ecoli
 dataset|ecoli_pcr_1|name                Ecoli PCR
 
-dataset|human_1|url                     ftp://ftp.era.ebi.ac.uk/NA12878.native.simpson.101515.tar.gz
+dataset|human_1|accession|run           ERR1309550
+dataset|human_1|accession|experiment    ERX1381173
+dataset|human_1|accession|study         ERP014559
+dataset|human_1|url                     ftp://ftp.sra.ebi.ac.uk/vol1/ERA581/ERA581326/oxfordnanopore_native/NA12878.native.simpson.101515.tar.gz
 dataset|human_1|md5sum                  6030467e74b9233e046097b14134716f
 dataset|human_1|dirname                 NA12878.native.simpson.101515.fast5
 dataset|human_1|reference               human
 dataset|human_1|name                    Human
 
-dataset|human_pcr_1|url                 ftp://ftp.era.ebi.ac.uk/NA12878.pcr.simpson.021616.tar.gz
+dataset|human_pcr_1|accession|run       ERR1309553
+dataset|human_pcr_1|accession|experiment ERX1381176
+dataset|human_pcr_1|accession|study     ERP014559
+dataset|human_pcr_1|url                 ftp://ftp.sra.ebi.ac.uk/vol1/ERA581/ERA581326/oxfordnanopore_native/NA12878.pcr.simpson.021616.tar.gz
 dataset|human_pcr_1|md5sum              dec80859720dd6a3cb28100c316a5687
 dataset|human_pcr_1|dirname             NA12878.pcr.simpson.021616.fast5
 dataset|human_pcr_1|reference           human
