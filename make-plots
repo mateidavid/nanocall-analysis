@@ -14,6 +14,10 @@ import matplotlib.colors
 import matplotlib.ticker
 import numpy as np
 
+def thousands(x, pos):
+    """The two args are the value and tick position"""
+    return '%dk' % (x * 1e-3)
+
 strand_name_dict = {
     0: 'Template',
     1: 'Complement'
@@ -40,7 +44,8 @@ measure_props = {
     'read_len': {
         'name': 'Read Length',
         'limits': (0, 30000),
-        'ticks': np.arange(0, 30001, 5000)
+        'ticks': np.arange(0, 30001, 5000),
+        'formatter': matplotlib.ticker.FuncFormatter(thousands)
         },
     'frac_align': {
         'name': 'Read Fraction Aligned',
@@ -120,6 +125,10 @@ def make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, x_measure_name, y_measure_name, 
     ax.set_ylim(measure_props[y_measure_name]['limits'], auto=False)
     ax.set_xticks(measure_props[x_measure_name]['ticks'])
     ax.set_yticks(measure_props[y_measure_name]['ticks'])
+    if 'formatter' in measure_props[x_measure_name] and ax.xaxis.get_major_formatter() != matplotlib.ticker.NullFormatter:
+        ax.xaxis.set_major_formatter(measure_props[x_measure_name]['formatter'])
+    if 'formatter' in measure_props[y_measure_name] and ax.yaxis.get_major_formatter() != matplotlib.ticker.NullFormatter:
+        ax.yaxis.set_major_formatter(measure_props[y_measure_name]['formatter'])
     ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
     ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
     ax.grid(which='both')
@@ -132,10 +141,8 @@ def make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, x_measure_name, y_measure_name, 
                        **kwargs)
     return artist
 
-def make_figure_id_vs_aln(fig_num, data, names):
-    if plt.fignum_exists(fig_num):
-        plt.figure(fig_num)
-        plt.clf()
+def make_figure_id_vs_aln(fig_id, data, names):
+    clear_fig(fig_id)
     ## fig.suptitle('Mapped Fraction vs Identity')
     rt_l = ['n0', 'n1', 'm0', 'm1', 'm2']
     fig, ax_a = plt.subplots(
@@ -146,8 +153,8 @@ def make_figure_id_vs_aln(fig_num, data, names):
             'height_ratios': [20] * len(data) + [1],
             'width_ratios': [20] * len(rt_l)
             },
-        num=fig_num, figsize=(5 * len(rt_l), 5 * len(data)))
-        #num=fig_num, figsize=(5 * len(data), 5 * len(rt_l)))
+        num=fig_id, figsize=(5 * len(rt_l), 5 * len(data)))
+        #num=fig_id, figsize=(5 * len(data), 5 * len(rt_l)))
     fig.text(0.5, 0.04, measure_props['frac_identity']['name'], ha='center', va='center')
     fig.text(0.04, 0.5, measure_props['frac_align']['name'], ha='center', va='center', rotation='vertical')
     for i in range(len(data)):
@@ -155,6 +162,8 @@ def make_figure_id_vs_aln(fig_num, data, names):
             d = data[i]
             rt = rt_l[j]
             ax = ax_a[i][j]
+            artist = make_plot_n_vs_m_measure(ax, d, rt, rt, 'frac_identity', 'frac_align',
+                                              cmap=cm_by_rt[rt], norm=bnd_nm)
             if i == 0:
                 ax.set_title(rt_name_dict[rt], fontsize=12)
             if j == 0:
@@ -163,18 +172,14 @@ def make_figure_id_vs_aln(fig_num, data, names):
                 ax.set_xticklabels([], visible=False)
             if j > 0:
                 ax.set_yticklabels([], visible=False)
-            artist = make_plot_n_vs_m_measure(ax, d, rt, rt, 'frac_identity', 'frac_align',
-                                              cmap=cm_by_rt[rt], norm=bnd_nm)
             if i == len(data) - 1:
                 #cax = add_subplot_axes(ax, [0.1, -0.15, 0.8, 0.05])
                 cax = ax_a[len(data)][j]
                 fig.colorbar(artist, cax=cax, orientation='horizontal')
     return fig
 
-def make_figure_measure(fig_num, data, names, measure_name, vs2d=False):
-    if plt.fignum_exists(fig_num):
-        plt.figure(fig_num)
-        plt.clf()
+def make_figure_measure(fig_id, data, names, measure_name, vs2d=False):
+    clear_fig(fig_id)
     fig, ax_a = plt.subplots(
         len(data) + 1, 2, sharex=False, sharey=False, squeeze=False,
         gridspec_kw={
@@ -183,7 +188,7 @@ def make_figure_measure(fig_num, data, names, measure_name, vs2d=False):
             'height_ratios': [20] * len(data) + [1],
             'width_ratios': [1, 1]
             },
-        num=fig_num, figsize=(10, 5 * len(data)))
+        num=fig_id, figsize=(10, 5 * len(data)))
     ##fig.suptitle('Nanocall vs Metrichor ' + ['same strand', '2D'][vs2d] + ': ' + measure_props[measure_name]['name'])
     fig.text(0.5, 0.04, 'Metrichor' + ['', ' 2D'][vs2d] + ': ' + measure_props[measure_name]['name'], ha='center', va='center')
     fig.text(0.04, 0.5, 'Nanocall: ' + measure_props[measure_name]['name'], ha='center', va='center', rotation='vertical')
@@ -191,6 +196,10 @@ def make_figure_measure(fig_num, data, names, measure_name, vs2d=False):
         for st in range(2):
             d = data[i]
             ax = ax_a[i][st]
+            x_rt = 'm' + str([st, 2][vs2d])
+            y_rt = 'n' + str(st)
+            artist = make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, measure_name, measure_name,
+                                              cmap=cm_by_st[st], norm=bnd_nm)
             if i == 0:
                 ax.set_title(strand_name_dict[st], fontsize=12)
             if st == 0:
@@ -199,13 +208,78 @@ def make_figure_measure(fig_num, data, names, measure_name, vs2d=False):
                 ax.set_xticklabels([], visible=False)
             if st > 0:
                 ax.set_yticklabels([], visible=False)
-            x_rt = 'm' + str([st, 2][vs2d])
-            y_rt = 'n' + str(st)
-            artist = make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, measure_name, measure_name,
-                                              cmap=cm_by_st[st], norm=bnd_nm)
             if i == len(data) - 1:
                 #cax = add_subplot_axes(ax, [0.1, [-0.15, 0.9][cb_top], 0.8, 0.05])
                 cax = ax_a[len(data)][st]
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def make_figure_dataset_measures(fig_id, data, names, idx):
+    clear_fig(fig_id)
+    measure_name_list = ['frac_identity', 'read_len', 'frac_align']
+    d = data[idx]
+    d_name = names[idx]
+    fig, ax_a = plt.subplots(
+        2 * len(measure_name_list) + 1, 2, sharex=False, sharey=False, squeeze=False,
+        gridspec_kw={
+            'hspace': .2,
+            'wspace': .1,
+            'height_ratios': [20] * (2 * len(measure_name_list)) + [1],
+            'width_ratios': [1, 1]
+            },
+        num=fig_id, figsize=(10, 5 * 2 * len(measure_name_list)))
+    for i in range(len(measure_name_list)):
+        measure_name = measure_name_list[i]
+        for vs2d in range(2):
+            for st in range(2):
+                ax = ax_a[2 * i + vs2d][st]
+                x_rt = 'm' + str([st, 2][vs2d])
+                y_rt = 'n' + str(st)
+                artist = make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, measure_name, measure_name,
+                                              cmap=cm_by_st[st], norm=bnd_nm)
+                if i == 0 and vs2d == 0:
+                    ax.set_title(strand_name_dict[st], fontsize=12)
+                if st == 0:
+                    ax.set_ylabel(measure_props[measure_name]['name'] + ['', ' vs 2D'][vs2d], fontsize=12)
+                if vs2d == 0:
+                    ax.set_xticklabels([], visible=False)
+                if st > 0:
+                    ax.set_yticklabels([], visible=False)
+                if i == len(measure_name_list) - 1 and vs2d == 1:
+                    cax = ax_a[2 * len(measure_name_list)][st]
+                    fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def make_figure_dataset_measures_by_st(fig_id, data, names, idx, st):
+    clear_fig(fig_id)
+    measure_name_list = ['frac_identity', 'read_len', 'frac_align']
+    d = data[idx]
+    d_name = names[idx]
+    fig, ax_a = plt.subplots(
+        len(measure_name_list) + 1, 2, sharex=False, sharey=False, squeeze=False,
+        gridspec_kw={
+            'hspace': .2,
+            'wspace': .1,
+            'height_ratios': [20] * (len(measure_name_list)) + [1],
+            'width_ratios': [1, 1]
+            },
+        num=fig_id, figsize=(10, 5 * len(measure_name_list)))
+    for i in range(len(measure_name_list)):
+        measure_name = measure_name_list[i]
+        for vs2d in range(2):
+            ax = ax_a[i][vs2d]
+            x_rt = 'm' + str([st, 2][vs2d])
+            y_rt = 'n' + str(st)
+            artist = make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, measure_name, measure_name,
+                                          cmap=cm_by_st[st], norm=bnd_nm)
+            if i == 0:
+                ax.set_title('vs ' + ['1D', '2D'][vs2d], fontsize=12)
+            if vs2d == 0:
+                ax.set_ylabel(measure_props[measure_name]['name'], fontsize=12)
+            if vs2d == 1:
+                ax.set_yticklabels([], visible=False)
+            if i == len(measure_name_list) - 1:
+                cax = ax_a[i + 1][vs2d]
                 fig.colorbar(artist, cax=cax, orientation='horizontal')
     return fig
 
@@ -214,6 +288,9 @@ def make_plot_n_vs_m_param(ax, d, param_name, st, **kwargs):
     ax.set_ylim(measure_props[param_name]['limits'], auto=False)
     ax.set_xticks(measure_props[param_name]['ticks'])
     ax.set_yticks(measure_props[param_name]['ticks'])
+    if 'formatter' in measure_props[param_name]:
+        ax.xaxis.set_major_formatter(measure_props[param_name]['formatter'])
+        ax.yaxis.set_major_formatter(measure_props[param_name]['formatter'])
     ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
     ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
     ax.grid(which='both')
@@ -228,10 +305,8 @@ def make_plot_n_vs_m_param(ax, d, param_name, st, **kwargs):
                        **kwargs)
     return artist
 
-def make_figure_param(fig_num, data, names, param_name):
-    if plt.fignum_exists(fig_num):
-        plt.figure(fig_num)
-        plt.clf()
+def make_figure_param(fig_id, data, names, param_name):
+    clear_fig(fig_id)
     fig, ax_a = plt.subplots(
         len(data) + 1, 2, sharex=False, sharey=False, squeeze=False,
         subplot_kw={
@@ -244,13 +319,15 @@ def make_figure_param(fig_num, data, names, param_name):
             'height_ratios': [20] * len(data) + [1],
             'width_ratios': [1, 1]
             },
-        num=fig_num, figsize=(11, 5 * len(data)))
+        num=fig_id, figsize=(11, 5 * len(data)))
     fig.text(0.5, 0.04, 'Metrichor: ' + measure_props[param_name]['name'], ha='center', va='center')
     fig.text(0.04, 0.5, 'Nanocall: ' + measure_props[param_name]['name'], ha='center', va='center', rotation='vertical')
     for i in range(len(data)):
         for st in range(2):
             d = data[i]
             ax = ax_a[i][st]
+            artist = make_plot_n_vs_m_param(ax, d, param_name, st,
+                                            cmap=cm_by_st[st], norm=bnd_nm)
             if i == 0:
                 ax.set_title(strand_name_dict[st], fontsize=12)
             if st == 0:
@@ -259,18 +336,14 @@ def make_figure_param(fig_num, data, names, param_name):
                 ax.set_xticklabels([], visible=False)
             if st > 0:
                 ax.set_yticklabels([], visible=False)
-            artist = make_plot_n_vs_m_param(ax, d, param_name, st,
-                                            cmap=cm_by_st[st], norm=bnd_nm)
             if i == len(data) - 1:
                 #cax = add_subplot_axes(ax, [0.1, [-0.15, 0.9][cb_top], 0.8, 0.05])
                 cax = ax_a[len(data)][st]
                 fig.colorbar(artist, cax=cax, orientation='horizontal')
     return fig
 
-def make_figure_dataset_params(fig_num, data, names, idx):
-    if plt.fignum_exists(fig_num):
-        plt.figure(fig_num)
-        plt.clf()
+def make_figure_dataset_params(fig_id, data, names, idx):
+    clear_fig(fig_id)
     param_name_list = ['scale', 'shift']
     d = data[idx]
     d_name = names[idx]
@@ -286,20 +359,20 @@ def make_figure_dataset_params(fig_num, data, names, idx):
         #    'aspect': 'equal',
         #    'adjustable': 'box-forced'
         #    },
-        num=fig_num, figsize=(10, 10))
+        num=fig_id, figsize=(10, 10))
     #fig.suptitle('Parameters: ' + d_name)
     for i in range(2):
         for st in range(2):
             ax = ax_a[i][st]
             param_name = param_name_list[i]
+            artist = make_plot_n_vs_m_param(ax, d, param_name, st,
+                                            cmap=cm_by_st[st], norm=bnd_nm)
             if i == 0:
                 ax.set_title(strand_name_dict[st], fontsize=12)
             if st == 0:
                 ax.set_ylabel(measure_props[param_name]['name'], fontsize=12)
             if st > 0:
                 ax.set_yticklabels([], visible=False)
-            artist = make_plot_n_vs_m_param(ax, d, param_name, st,
-                                            cmap=cm_by_st[st], norm=bnd_nm)
             if i == 1:
                 #cax = add_subplot_axes(ax, [0.1, -0.15, 0.8, 0.05])
                 cax = ax_a[2][st]
@@ -386,6 +459,11 @@ def write_counts(data, cnt, names):
         print(names[i] + '\t' + str(len(d)) + '\t' + '\t'.join((str(v) for v in l)), file=f)
     f.close()
 
+def clear_fig(fig_id):
+    if plt.fignum_exists(fig_id):
+        plt.figure(fig_id)
+        plt.clf()
+
 def save_fig(prefix, args):
     for fmt in args.format:
         plt.savefig(prefix + '.' + fmt, dpi=args.dpi)
@@ -448,8 +526,18 @@ if __name__ == "__main__" and "__file__" in globals():
         make_figure_param(fig_name, params_table, names, param_name)
         save_fig(fig_name, args)
 
-    # make params plots
+    # make dataset params plots
     for i in range(len(data)):
         fig_name = 'figure_' + names[i].lower().replace(' ', '_') + '_params'
         make_figure_dataset_params(fig_name, params_table, names, i)
         save_fig(fig_name, args)
+
+    # make dataset measure plots
+    for i in range(len(data)):
+        fig_name = 'figure_' + names[i].lower().replace(' ', '_') + '_measures'
+        make_figure_dataset_measures(fig_name, data, names, i)
+        save_fig(fig_name, args)
+        for st in range(2):
+            fig_name = 'figure_' + names[i].lower().replace(' ', '_') + '_measures_' + strand_name_dict[st].lower()
+            make_figure_dataset_measures_by_st(fig_name, data, names, i, st)
+            save_fig(fig_name, args)
