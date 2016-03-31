@@ -2,10 +2,15 @@ ifndef ROOT_DIR
 $(error Do not use this makefile directly)
 endif
 
-.PHONY: figures-pdf figures-png tables table-main table-default-transitions table-train-stop
+.PHONY: \
+	figures $(foreach fmt,${EXPORT_FORMATS},figures-${fmt}) \
+	tables table-main table-default-transitions table-train-stop
 
-EXPORT_FORMATS = pdf png
-EXPORT_TARGETS = $(foreach fmt,${EXPORT_FORMATS},figures-${fmt}) tables
+EXPORT_FORMATS = pdf eps
+EXPORT_TARGETS = figures tables
+FIGURES_DPI = 350
+
+figures: $(foreach fmt,${EXPORT_FORMATS},figures-${fmt})
 
 TABLE_MAIN_DATASUBSETS = $(call keymap_val,export|table|main|dss)
 TABLE_TRAIN_STOP_DATASUBSETS = $(call keymap_val,export|table|train_stop|dss)
@@ -97,7 +102,7 @@ exports/n_vs_m_scale.${1}: \
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
 	  cd exports && \
-	  ${PYTHON3} ${ROOT_DIR}/make-plots --format "${1}" \
+	  ${PYTHON3} ${ROOT_DIR}/make-plots --format "${1}" --dpi ${FIGURES_DPI} \
 	    $(foreach rp,${DETAILED_FIGURES_RUNS},-d "$(call get_ds_name,$(word 1,$(subst ., ,${rp})))" ${PWD}/${rp}.{bam.summary,params_table}.tsv); \
 	}
 endef
