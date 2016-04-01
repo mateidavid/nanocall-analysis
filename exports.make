@@ -95,8 +95,8 @@ $(eval $(call make_table_default_transitions,${ds},${ss})))))
 
 define make_detailed_figures
 # 1: output format
-figures-${1}: exports/n_vs_m_scale.${1}
-exports/n_vs_m_scale.${1}: \
+figures-${1}: exports/figure_scale.${1}
+exports/figure_scale.${1}: \
 	$(foreach rp,${DETAILED_FIGURES_RUNS},${rp}.bam.summary.tsv ${rp}.params_table.tsv) \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
