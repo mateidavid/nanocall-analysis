@@ -4,35 +4,30 @@ endif
 
 .PHONY: \
 	figures $(foreach fmt,${EXPORT_FORMATS},figures-${fmt}) \
-	tables table-main table-default-transitions table-train-stop
+	tables $(foreach tb,$(call keymap_key_list,export|table),table-${tb})
+
+figures: $(foreach fmt,${EXPORT_FORMATS},figures-${fmt})
+tables: $(foreach tb,$(call keymap_key_list,export|table),table-${tb})
 
 EXPORT_FORMATS = pdf eps
 EXPORT_TARGETS = figures tables
 FIGURES_DPI = 350
 
-figures: $(foreach fmt,${EXPORT_FORMATS},figures-${fmt})
-
 TABLE_MAIN_DATASUBSETS = $(call keymap_val,export|table|main|dss)
 TABLE_TRAIN_STOP_DATASUBSETS = $(call keymap_val,export|table|train_stop|dss)
 TABLE_DEFAULT_TRANSITIONS_DATASUBSETS = $(call keymap_val,export|table|default_transitions|dss)
-
-tables: table-main table-train-stop table-default-transitions
 
 exports:
 	mkdir -p exports
 
 define make_table
 # ${1}: table_name
-# ${2}: dss list
-table-${1}: \
-	$(foreach dss,${2},\
-	$(foreach ds,$(call get_dss_ds,${dss}),\
-	$(foreach ss,$(call get_dss_ss,${dss}),\
-	exports/table_$(subst -,_,${1})_${ds}_${ss}.tex)))
+# ${2}: table arg
+table-${1}: exports/table_${1}_$(subst .,_,${2}).tex
 endef
-$(eval $(call make_table,main,${TABLE_MAIN_DATASUBSETS}))
-$(eval $(call make_table,train-stop,${TABLE_TRAIN_STOP_DATASUBSETS}))
-$(eval $(call make_table,default-transitions,${TABLE_DEFAULT_TRANSITIONS_DATASUBSETS}))
+$(foreach tb,$(call keymap_key_list,export|table),\
+$(foreach tb_arg,$(call keymap_val,export|table|${tb}|dss),\
+$(eval $(call make_table,${tb},${tb_arg}))))
 
 define make_table_main
 # 1: ds
@@ -52,6 +47,24 @@ $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(eval $(call make_table_main,${ds},${ss})))))
+
+define make_table_main_aux_rt
+# 1: ds
+# 2: ss1
+# 3: ss2
+exports/table_main_aux_rt_${1}_${2}_${3}.tex: \
+	${1}.${2}.summary.main.map_pos.tsv \
+	${1}.${2}.summary.main.errors.tsv \
+	${1}.${3}.summary.main.runtime.tsv \
+	| exports
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	{ \
+	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
+	  column -t; \
+	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
+endef
+$(foreach tb_arg,$(call keymap_val,export|table|main_aux_rt|dss),\
+$(eval $(call make_table_main_aux_rt,$(word 1,$(subst ., ,${tb_arg})),$(word 2,$(subst ., ,${tb_arg})),$(word 3,$(subst ., ,${tb_arg})))))
 
 define make_table_train_stop
 # 1: ds

@@ -110,5 +110,6 @@ nanocall_option_pack|default_transitions 2ss-pstay_10-pskip_26 2ss-pstay_10-pski
 
 export|detailed_figures_runs            ecoli_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d ecoli_pcr_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d human_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d human_pcr_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d
 export|table|main|dss                   ecoli_1.pass_10000 ecoli_pcr_1.pass_10000 human_1.pass_10000 human_pcr_1.pass_10000
+export|table|main_aux_rt|dss               ecoli_1.pass_10000.pass_1000 ecoli_pcr_1.pass_10000.pass_1000 human_1.pass_10000.pass_1000 human_pcr_1.pass_10000.pass_1000
 export|table|train_stop|dss             human_pcr_1.pass_1000
 export|table|default_transitions|dss    human_pcr_1.pass_1000
