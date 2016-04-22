@@ -37,8 +37,8 @@ ${1}: ${2} | bwa.version ${3}--bwa-index
 	{ \
 	  zcat -f ${2} | \
 	  ${BWA} mem -t ${5} ${4} ${3}.fa - | \
-	  ${PYTHON3} ${ROOT_DIR}/bam-filter-best-alignment; \
-	} >$$@ 2>.$$@.log
+	  ${PYTHON3} ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
+	} 2>.$$@.log
 ${1}.summary.tsv: ${1}
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	${PYTHON3} ${ROOT_DIR}/make-bam-summary $$< >$$@ 2>.$$@.log
@@ -82,7 +82,7 @@ define run_nanocall
 # 4 = num threads
 # 5 = RAM request
 ${1}.fa.gz: ${2} | python3.version nanocall.version
-	SGE_RREQ="-N $$@ -pe smp ${4} -l h_tvmem=${5} -l h_rt=48:0:0 -l s_rt=48:0:0 -q !default" :; \
+	SGE_RREQ="-N $$@ -pe smp ${4} -l h_tvmem=${5} ${NANOCALL_SGE_OPTS}" :; \
 	{ \
 	  if [ "${CACHE_FILES}" = "1" ]; then \
 	    dir=$$$$(mktemp -d); \
