@@ -8,15 +8,15 @@ import argparse
 
 import fast5_reader
 
-def process_file(fn, st):
+def process_file(fn, st, bc_grp):
     try:
         f = fast5_reader.File(fn)
-        if not f.have_fastq(st):
-            print(fn + ': no fastq for strand ' + str(st), file=sys.stderr)
+        if not f.have_fastq(st, basecall_group=bc_grp):
+            print(fn + ': no fastq for strand ' + str(st) + ' in group ' + str(bc_grp), file=sys.stderr)
             return
-        fq = f.get_fastq(st)
+        fq = f.get_fastq(st, basecall_group=bc_grp)
         f.close()
-        print(fq.strip())
+        print(fq, end='')
     except:
         print(fn + ': error processing file', file=sys.stderr)
 
@@ -27,13 +27,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=description, epilog='')
     parser.add_argument('--strand', type=int, default=0, help='Strand (2 for 2D)')
     parser.add_argument('--fofn', help='File of Fast5 files')
+    parser.add_argument('--rnn', help='Use RNN basecalls', action='store_true', default=False)
     parser.add_argument('input', nargs='?', help='Fast5 file')
     args = parser.parse_args()
 
+    bc_grp = ['metrichor_hmm', 'metrichor_rnn'][args.rnn]
     if args.input:
-        process_file(args.input, args.strand)
+        process_file(args.input, args.strand, bc_grp)
     if args.fofn:
         fofn_f = open(args.fofn)
         for line in fofn_f:
-            process_file(line.strip(), args.strand)
+            process_file(line.strip(), args.strand, bc_grp)
         fofn_f.close()

@@ -25,12 +25,18 @@ class File(object):
                         ['/Analyses/Basecall_1D_000/Summary/basecall_1d_template',
                          '/Analyses/Basecall_1D_000/Summary/basecall_1d_complement']]
     alignment_path = '/Analyses/Basecall_2D_000/BaseCalled_2D/Alignment'
-    fastq_path = [['/Analyses/Basecall_2D_000/BaseCalled_template/Fastq',
-                   '/Analyses/Basecall_2D_000/BaseCalled_complement/Fastq',
-                   '/Analyses/Basecall_2D_000/BaseCalled_2D/Fastq'],
-                  ['/Analyses/Basecall_1D_000/BaseCalled_template/Fastq',
-                   '/Analyses/Basecall_1D_000/BaseCalled_complement/Fastq',
-                   '/Analyses/Basecall_2D_000/BaseCalled_2D/Fastq']]
+    fastq_path = [{'metrichor_hmm': ['/Analyses/Basecall_2D_000/BaseCalled_template/Fastq',
+                                     '/Analyses/Basecall_2D_000/BaseCalled_complement/Fastq',
+                                     '/Analyses/Basecall_2D_000/BaseCalled_2D/Fastq'],
+                   'metrichor_rnn': ['/Analyses/Basecall_RNN_1D_000/BaseCalled_template/Fastq',
+                                     '/Analyses/Basecall_RNN_1D_000/BaseCalled_complement/Fastq',
+                                     '/Analyses/Basecall_RNN_2D_000/BaseCalled_2D/Fastq']},
+                  {'metrichor_hmm': ['/Analyses/Basecall_1D_000/BaseCalled_template/Fastq',
+                                     '/Analyses/Basecall_1D_000/BaseCalled_complement/Fastq',
+                                     '/Analyses/Basecall_2D_000/BaseCalled_2D/Fastq'],
+                   'metrichor_rnn': ['/Analyses/Basecall_RNN_1D_000/BaseCalled_template/Fastq',
+                                     '/Analyses/Basecall_RNN_1D_000/BaseCalled_complement/Fastq',
+                                     '/Analyses/Basecall_RNN_2D_000/BaseCalled_2D/Fastq']}]
     hairpin_alignment_path = '/Analyses/Basecall_2D_000/HairpinAlign/Alignment'
 
     def __init__(self, file_name=None):
@@ -68,6 +74,7 @@ class File(object):
             if 'chimaera version' not in _d:
                 continue
             return _d['chimaera version'].decode()
+        return '1.16'
 
     def have_raw_events(self):
         """
@@ -164,17 +171,20 @@ class File(object):
                         for t in _a.dtype.descr])
         return _a[()].astype(_dt), dict(_a.attrs)
 
-    def have_fastq(self, strand):
+    def have_fastq(self, strand, basecall_group='metrichor_hmm'):
         """
         Check that the Fast5 file has fastq entry for the given strand (2 for 2D).
         """
-        return File.fastq_path[self.chimera_version >= '1.16'][strand] in self.file
+        return File.fastq_path[self.chimera_version >= '1.16'][basecall_group][strand] in self.file
 
-    def get_fastq(self, strand):
+    def get_fastq(self, strand, basecall_group='metrichor_hmm'):
         """
         Retrieve the fastq entry for the given strand (2 for 2D).
         """
-        return self.file[File.fastq_path[self.chimera_version >= '1.16'][strand]][()].decode()
+        _res = self.file[File.fastq_path[self.chimera_version >= '1.16'][basecall_group][strand]][()].decode()
+        if _res.count('\n') < 4:
+            _res += '\n' * (4 - _res.count('\n'))
+        return _res
 
     def have_hairpin_alignment(self):
         """
