@@ -10,7 +10,7 @@ class File(object):
     """
     Class representing a Fast5 file.
     """
-    raw_events_root = '/Analyses/EventDetection_000/Reads'
+    ed_events_root = '/Analyses/EventDetection_000/Reads'
     basecall_log_path = '/Analyses/Basecall_2D_000/Log'
     events_path = [['/Analyses/Basecall_2D_000/BaseCalled_template/Events',
                     '/Analyses/Basecall_2D_000/BaseCalled_complement/Events'],
@@ -76,20 +76,20 @@ class File(object):
             return _d['chimaera version'].decode()
         return '1.16'
 
-    def have_raw_events(self):
+    def have_ed_events(self):
         """
-        Check that the Fast5 file has a raw event sequence.
+        Check that the Fast5 file has an EventDetection event sequence.
         """
-        if File.raw_events_root not in self.file:
+        if File.ed_events_root not in self.file:
             return False
-        _g = self.file[File.raw_events_root]
+        _g = self.file[File.ed_events_root]
         return len(list(_g)) >= 1
 
-    def get_raw_events(self):
+    def get_ed_events(self):
         """
-        Retrieve the raw event sequence and its attributes.
+        Retrieve the EventDetection event sequence and its attributes.
         """
-        _g = self.file[File.raw_events_root]
+        _g = self.file[File.ed_events_root]
         _r = _g[list(_g.keys())[0]]
         return _r['Events'][()], dict(_r.attrs)
 
@@ -97,7 +97,7 @@ class File(object):
         """
         Get read attributes set under EventDetection.
         """
-        _g = self.file[File.raw_events_root]
+        _g = self.file[File.ed_events_root]
         _r = _g[list(_g.keys())[0]]
         return dict(_r.attrs)
 
