@@ -12,10 +12,14 @@ class File(object):
     """
     ed_events_root = '/Analyses/EventDetection_000/Reads'
     basecall_log_path = '/Analyses/Basecall_2D_000/Log'
-    events_path = [['/Analyses/Basecall_2D_000/BaseCalled_template/Events',
-                    '/Analyses/Basecall_2D_000/BaseCalled_complement/Events'],
-                    ['/Analyses/Basecall_1D_000/BaseCalled_template/Events',
-                     '/Analyses/Basecall_1D_000/BaseCalled_complement/Events']]
+    events_path = [{'metrichor_hmm': ['/Analyses/Basecall_2D_000/BaseCalled_template/Events',
+                                      '/Analyses/Basecall_2D_000/BaseCalled_complement/Events'],
+                    'metrichor_rnn': ['/Analyses/Basecall_RNN_1D_000/BaseCalled_template/Events',
+                                      '/Analyses/Basecall_RNN_1D_000/BaseCalled_complement/Events']},
+                   {'metrichor_hmm': ['/Analyses/Basecall_1D_000/BaseCalled_template/Events',
+                                      '/Analyses/Basecall_1D_000/BaseCalled_complement/Events'],
+                    'metrichor_rnn': ['/Analyses/Basecall_RNN_1D_000/BaseCalled_template/Events',
+                                      '/Analyses/Basecall_RNN_1D_000/BaseCalled_complement/Events']}]
     model_path = [['/Analyses/Basecall_2D_000/BaseCalled_template/Model',
                    '/Analyses/Basecall_2D_000/BaseCalled_complement/Model'],
                    ['/Analyses/Basecall_1D_000/BaseCalled_template/Model',
@@ -113,17 +117,17 @@ class File(object):
         """
         return self.file[File.basecall_log_path][()].decode()
 
-    def have_events(self, strand):
+    def have_events(self, strand, basecall_group='metrichor_hmm'):
         """
         Check that the Fast5 file has an event sequence for the given strand.
         """
-        return File.events_path[self.chimera_version >= '1.16'][strand] in self.file
+        return File.events_path[self.chimera_version >= '1.16'][basecall_group][strand] in self.file
 
-    def get_events(self, strand):
+    def get_events(self, strand, basecall_group='metrichor_hmm'):
         """
         Retrieve the event sequence and its attributes for the given strand.
         """
-        _e = self.file[File.events_path[self.chimera_version >= '1.16'][strand]]
+        _e = self.file[File.events_path[self.chimera_version >= '1.16'][basecall_group][strand]]
         _dt = np.dtype([t if 'S' not in t[1] else (t[0], t[1].replace('S', 'U'))
                         for t in _e.dtype.descr])
         return _e[()].astype(_dt), dict(_e.attrs)
