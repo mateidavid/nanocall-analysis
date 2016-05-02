@@ -17,11 +17,14 @@ if __name__ == "__main__" and "__file__" in globals():
 
     f = h5py.File(args.file)
     a = f[args.path]
-    dt = np.dtype([t if 'S' not in t[1] else (t[0], t[1].replace('S', 'U'))
-                   for t in a.dtype.descr])
-    d = dict(a.attrs)
-    for k in d.keys():
-        print('#' + k + '\t' + str(d[k]))
-    print('\t'.join(dt.names))
-    for e in a[()].astype(dt):
-        print('\t'.join((str(v) for v in e)))
+    if len(a.shape) > 0:
+        dt = np.dtype([t if 'S' not in t[1] else (t[0], t[1].replace('S', 'U'))
+                       for t in a.dtype.descr])
+        d = dict(a.attrs)
+        for k in d.keys():
+            print('#' + k + '\t' + str(d[k]))
+        print('\t'.join(dt.names))
+        for e in a[()].astype(dt):
+            print('\t'.join((str(v) for v in e)))
+    else:
+        print(str(a[()].decode()), end='')
