@@ -1,5 +1,15 @@
 #!/bin/bash
 
-[ $# -eq 1 ] || { echo "use: $(basename $0) <hdf5_file>"; exit 1; }
+[ $# -eq 1 ] || {
+    echo "use: $(basename $0) <hdf5_file>"
+    exit 1
+}
 
-h5ls -r "$1" | awk '$2=="Dataset" {$2=""; print}' | column -t
+h5ls -r "$1" |
+awk '$2=="Dataset" {$2=""; print}' |
+sed 's/^  *//;s/  *$//;s/  */\t/g' |
+if [ -t 1 ]; then
+    column -t
+else
+    cat
+fi
