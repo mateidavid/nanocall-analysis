@@ -54,6 +54,8 @@ dataset|human_pcr_1|name                Human PCR
 subset|pass_100                         grep /pass/ | head -n 100
 subset|pass_1000                        grep /pass/ | head -n 1000
 subset|pass_10000                       grep /pass/ | head -n 10000
+subset|pass_2d_100                      grep /pass/ | while read -r f; do ${ROOT_DIR}/h5lsds \$$$${f} | grep -q BaseCalled_2D/Fastq && echo \$$$${f}; done | head -n 100
+subset|pass_2d_1000                     grep /pass/ | while read -r f; do ${ROOT_DIR}/h5lsds \$$$${f} | grep -q BaseCalled_2D/Fastq && echo \$$$${f}; done | head -n 1000
 
 mapper_option|bwa|ont2d                 -x ont2d
 

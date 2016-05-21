@@ -2,10 +2,15 @@ ifndef ROOT_DIR
 $(error Do not use this makefile directly)
 endif
 
-DATA_TARGETS = \
-	$(foreach ref,${REFERENCES},${ref}--reference ${ref}--bwa-index) \
-	$(foreach ds,${DATASETS},${ds}) \
-	$(foreach dss,${DATASUBSETS},${dss}.fofn)
+.PHONY: references datasets datasubsets
+
+references: $(foreach ref,${REFERENCES},${ref}--reference ${ref}--bwa-index)
+
+datasets: $(foreach ds,${DATASETS},${ds})
+
+datasubsets: $(foreach dss,${DATASUBSETS},${dss}.fofn)
+
+DATA_TARGETS = references datasets datasubsets
 
 #####################
 #
