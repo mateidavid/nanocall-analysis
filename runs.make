@@ -142,13 +142,13 @@ ${1}.metrichor+nanocall~${2}.${3}.params_table.tsv: \
 	    <(head -n1 ${1}.metrichor.params.tsv) | \
 	  join -t$$$$'\t' \
 	    - \
-	    <(head -n1 ${1}.nanocall~${2}.stats | cut -f 2,9-); \
+	    <(head -n1 ${1}.nanocall~${2}.stats | cut -f 2,5-); \
 	  join -t$$$$'\t' \
 	    <(tail -n+2 ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv | sort -k1) \
 	    <(tail -n+2 ${1}.metrichor.params.tsv | sort -k1) | \
 	  join -t$$$$'\t' \
 	    - \
-	    <(tail -n+2 ${1}.nanocall~${2}.stats | cut -f 2,9- | sort -k1); \
+	    <(tail -n+2 ${1}.nanocall~${2}.stats | cut -f 2,5- | sort -k1); \
 	} >$$@ 2>.$$@.log
 endef
 
