@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import operator
+import itertools
+import argparse
+
+import fast5_reader
+
+model_keys = ['scale', 'shift', 'drift', 'var', 'scale_sd', 'var_sd', 'stay_prob', 'skip_prob']
+
+def process_file(fn):
+    try:
+        f5 = fast5_reader.File(fn)
+    except OSError:
+        print(fn + ': could not open file', file=sys.stderr)
+        return
+
+    a = f5.get_ed_read_attrs()
+    read_name = a['read_id'].decode()
+
+    l = [read_name]
+    if f5.have_hairpin_split:
+        l += [f5.get_hairpin_split]
+    else:
+        l += ['.']
+    for st in range(2):
+        if f5.have_model_path(st):
+            mp = f5.get_model_path(st)
+            mp = mp.split('/')[-1]
+            if mp.startswith('template'):
+                mp = 't.006.ont.model'
+            elif mp.startswith('complement'):
+                if 'pop1' in mp:
+                    mp = 'c.p1.006.ont.model'
+                elif 'pop2' in mp:
+                    mp = 'c.p2.006.ont.model'
+            l += [mp]
+        else:
+            l += ['.']
+        if f5.have_model(st):
+            _, p = f5.get_model(st)
+            l += [p[k] for k in model_keys]
+        else:
+            l += ['.'] * len(model_keys)
+
+    print('\t'.join((str(v) for v in l)))
+    f5.close()
+
+if __name__ == "__main__":
+    description = """
+    Extract Metrichor model parameters for file(s).
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--fofn', help='File of Fast5 files')
+    parser.add_argument('input', nargs='?', help='Fast5 file')
+    args = parser.parse_args()
+
+    l = ['read_name', 'hairpin_split']
+    for st in range(2):
+        prefix = 'm' + str(st) + '_'
+        l += [prefix + key for key in ['model_name'] + model_keys]
+    print('\t'.join(l))
+
+    if args.input:
+        process_file(args.input)
+    if args.fofn:
+        fofn_f = open(args.fofn)
+        for line in fofn_f:
+            process_file(line.strip())
+        fofn_f.close()

@@ -42,6 +42,8 @@ class File(object):
                                      '/Analyses/Basecall_RNN_1D_000/BaseCalled_complement/Fastq',
                                      '/Analyses/Basecall_RNN_2D_000/BaseCalled_2D/Fastq']}]
     hairpin_alignment_path = '/Analyses/Basecall_2D_000/HairpinAlign/Alignment'
+    hairpin_split_prefix_l = ['/Analyses/Hairpin_Split_000', '/Analyses/Basecall_2D_000']
+    hairpin_split_suffix = '/Summary/split_hairpin'
 
     def __init__(self, file_name=None):
         self.is_open = False
@@ -202,3 +204,24 @@ class File(object):
         """
         _a = self.file[File.hairpin_alignment_path]
         return _a[()], dict(_a.attrs)
+
+    def have_hairpin_split(self):
+        """
+        Check if the Fast5 file has a hairpin split data.
+        """
+        for g in hairpin_split_prefix_l:
+            path = g + hairpin_split_suffix
+            if g in self.file and path in self.file:
+                return True
+        return False
+
+    def get_hairpin_split(self):
+        """
+        Get hairpin split data
+        """
+        for g in hairpin_split_prefix_l:
+            path = g + hairpin_split_suffix
+            if g in self.file and path in self.file:
+                _g = self.file[path]
+                _d = dict(_g.attrs)
+                return _d['split_index']

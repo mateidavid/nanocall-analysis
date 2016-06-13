@@ -14,6 +14,7 @@ EXPORT_TARGETS = figures tables
 FIGURES_DPI = 350
 
 TABLE_MAIN_DATASUBSETS = $(call keymap_val,export|table|main|dss)
+TABLE_MAIN_R9_DATASUBSETS = $(call keymap_val,export|table|main_r9|dss)
 TABLE_TRAIN_STOP_DATASUBSETS = $(call keymap_val,export|table|train_stop|dss)
 TABLE_DEFAULT_TRANSITIONS_DATASUBSETS = $(call keymap_val,export|table|default_transitions|dss)
 
@@ -47,6 +48,25 @@ $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(eval $(call make_table_main,${ds},${ss})))))
+
+define make_table_main_r9
+# 1: ds
+# 2: ss
+exports/table_main_r9_${1}_${2}.tex: \
+	${1}.${2}.summary.main_r9.map_pos.tsv \
+	${1}.${2}.summary.main_r9.errors.tsv \
+	${1}.${2}.summary.main_r9.runtime.tsv \
+	| exports
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	{ \
+	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
+	  column -t; \
+	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
+endef
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(eval $(call make_table_main_r9,${ds},${ss})))))
 
 define make_table_main_aux_rt
 # 1: ds

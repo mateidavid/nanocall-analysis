@@ -107,7 +107,7 @@ $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach nanocall_opts,$(call get_ds_nanocall_opt_list,${ds}),\
-$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_nanocall_opt_cmd,${nanocall_opts}),$(call get_nanocall_opt_threads,${nanocall_opts}),15G))))))
+$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_nanocall_opt_cmd,${nanocall_opts}),$(call get_nanocall_opt_threads,${nanocall_opts}),20G))))))
 
 define make_m_vs_n_tables
 ${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv: \
