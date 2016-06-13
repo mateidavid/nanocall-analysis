@@ -21,8 +21,8 @@ def process_file(fn):
     read_name = a['read_id'].decode()
 
     l = [read_name]
-    if f5.have_hairpin_split:
-        l += [f5.get_hairpin_split]
+    if f5.have_hairpin_split():
+        l += [f5.get_hairpin_split()]
     else:
         l += ['.']
     for st in range(2):

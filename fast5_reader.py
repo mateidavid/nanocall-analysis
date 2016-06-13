@@ -209,8 +209,8 @@ class File(object):
         """
         Check if the Fast5 file has a hairpin split data.
         """
-        for g in hairpin_split_prefix_l:
-            path = g + hairpin_split_suffix
+        for g in File.hairpin_split_prefix_l:
+            path = g + File.hairpin_split_suffix
             if g in self.file and path in self.file:
                 return True
         return False
@@ -219,8 +219,8 @@ class File(object):
         """
         Get hairpin split data
         """
-        for g in hairpin_split_prefix_l:
-            path = g + hairpin_split_suffix
+        for g in File.hairpin_split_prefix_l:
+            path = g + File.hairpin_split_suffix
             if g in self.file and path in self.file:
                 _g = self.file[path]
                 _d = dict(_g.attrs)
