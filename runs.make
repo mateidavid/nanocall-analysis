@@ -19,7 +19,7 @@ $(eval $(call extract_metrichor_fq,${dss},${st}))))
 define get_metrichor_params
 ${1}.metrichor.params.tsv: ${1}.fofn
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${PYTHON3} ${ROOT_DIR}/get-model-params --fofn $$< >$$@ 2>.$$@.log
+	${PYTHON3} ${ROOT_DIR}/get-metrichor-params --fofn $$< >$$@ 2>.$$@.log
 endef
 $(foreach dss,${DATASUBSETS},\
 $(eval $(call get_metrichor_params,${dss})))
