@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+
+import argparse
+import itertools
+import logging
+import operator
+import os
+import sys
+import numpy as np
+from collections import Counter
+
+import bam_summary
+
+def process_data(d, ref_rt):
+    # determine read types
+    rt_d = {e['read_type'].decode(): True for e in d}
+    assert(ref_rt in rt_d)
+    rest_rt_l = list(rt_d.keys())
+    rest_rt_l.remove(ref_rt)
+    rest_rt_l.sort()
+    rt_l = [ref_rt] + rest_rt_l
+    logger.debug('found read types: ' + str(rt_l))
+    # now check mapping correctness for each read
+    hl = ['read_name'] + rt_l + [rt + '_' + v
+                                 for rt in rt_l
+                                 for v in ['read_len', 'aln_len', 'errors']]
+    print('\t'.join(hl))
+    for rn, g in itertools.groupby(d, operator.itemgetter('read_name')):
+        d2 = {e['read_type'].decode(): e for e in g}
+        l = list()
+        # mapping correctness
+        if ref_rt not in d2:
+            l = [rn.decode(), '2'] + ['0'] * len(rest_rt_l)
+        else:
+            l = [rn.decode(), '0'] + ['2' if rt not in d2
+                                      else '1' if not bam_summary.align_overlap(d2[rt], d2[ref_rt])
+                                      else '0'
+                                      for rt in rest_rt_l]
+        # errors
+        for rt in rt_l:
+            if rt in d2:
+                l += [d2[rt]['read_len'], d2[rt]['align_len'], d2[rt]['tot_errors']]
+            else:
+                l += [0, 0, 0]
+        print('\t'.join((str(e) for e in l)))
+
+if __name__ == "__main__":
+    description = """
+Check if alignment positions of various read types match the alignment of the reference read type.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('-o', '--output', default='-', help='Output summary file.')
+    parser.add_argument('-r', '--ref-type', default='m2', help='Reference alignment type.')
+    parser.add_argument('input', nargs='?', default='-', help='Input SAM/BAM summary file.')
+    args = parser.parse_args()
+
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.info('args=' + str(args))
+
+    d = bam_summary.load_data(open(args.input) if args.input != '-' else sys.stdin)
+    process_data(d, args.ref_type)

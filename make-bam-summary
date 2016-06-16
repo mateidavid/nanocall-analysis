@@ -87,29 +87,37 @@ def process_file(in_bam, out_txt):
         'deletions',
         'tot_errors']))
     for aln in in_bam:
-        if aln.is_unmapped or aln.is_secondary or aln.is_supplementary or aln.is_qcfail:
+        if aln.is_secondary or aln.is_supplementary:
             continue
         read_name = aln.query_name.split(':')[0]
         read_type = ':'.join(aln.query_name.split(':')[2:4])
         read_type = read_type[0] + read_type[-1]
-        #read_len = aln.infer_query_length()
-        align_chr = aln.reference_name
-        align_pos = aln.reference_start
-        cigar_prof = cigar_profile(aln.cigartuples)
-        if aln.has_tag('NM'):
-            disambiguate_matches(cigar_prof, aln.get_tag('NM'))
-        assert cigar_prof[MATCH] == 0
-        # reference length
-        align_len = get_align_ref_len(cigar_prof)
-        assert align_len == aln.reference_length
-        # read length
-        read_len = get_orig_read_len(cigar_prof)
-        assert read_len == aln.infer_query_length() + cigar_prof[HARD]
-        # unaligned length
-        unalign_len = get_unalign_read_len(cigar_prof)
-        assert unalign_len == read_len - get_align_read_len(cigar_prof)
-        # edit distance
-        tot_errors = get_total_differences(cigar_prof)
+        if not aln.is_unmapped:
+            align_chr = aln.reference_name
+            align_pos = aln.reference_start
+            #read_len = aln.infer_query_length()
+            cigar_prof = cigar_profile(aln.cigartuples)
+            if aln.has_tag('NM'):
+                disambiguate_matches(cigar_prof, aln.get_tag('NM'))
+            assert cigar_prof[MATCH] == 0
+            # reference length
+            align_len = get_align_ref_len(cigar_prof)
+            assert align_len == aln.reference_length
+            # read length
+            read_len = get_orig_read_len(cigar_prof)
+            assert read_len == aln.infer_query_length() + cigar_prof[HARD]
+            # unaligned length
+            unalign_len = get_unalign_read_len(cigar_prof)
+            assert unalign_len == read_len - get_align_read_len(cigar_prof)
+            # edit distance
+            tot_errors = get_total_differences(cigar_prof)
+        else:
+            align_chr = '*'
+            align_pos = 0
+            align_len = 0
+            unalign_len = 0
+            cigar_prof = {EQUAL: 0, DIFF: 0, INS: 0, DEL: 0}
+            tot_errors = 0
         print('\t'.join((str(e) for e in [
             read_name,
             read_type,

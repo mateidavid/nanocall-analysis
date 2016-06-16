@@ -130,13 +130,13 @@ define make_detailed_figures
 # 1: output format
 figures-${1}: exports/figure_scale.${1}
 exports/figure_scale.${1}: \
-	$(foreach rp,${DETAILED_FIGURES_RUNS},${rp}.bam.summary.tsv ${rp}.params_table.tsv) \
+	$(foreach rp,${DETAILED_FIGURES_RUNS},${rp}.bam_summary.tsv ${rp}.full_table.tsv) \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
 	  cd exports && \
 	  ${PYTHON3} ${ROOT_DIR}/make-plots --format "${1}" --dpi ${FIGURES_DPI} \
-	    $(foreach rp,${DETAILED_FIGURES_RUNS},-d "$(call get_ds_name,$(word 1,$(subst ., ,${rp})))" ${PWD}/${rp}.{bam.summary,params_table}.tsv); \
+	    $(foreach rp,${DETAILED_FIGURES_RUNS},-d "$(call get_ds_name,$(word 1,$(subst ., ,${rp})))" ${PWD}/${rp}.{bam_summary,full_table}.tsv); \
 	}
 endef
 $(foreach fmt,${EXPORT_FORMATS},$(eval $(call make_detailed_figures,${fmt})))

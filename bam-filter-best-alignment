@@ -36,6 +36,8 @@ def process_file_sorted(in_bam, out_bam):
     crt_best_aln = None
     crt_best_num_matches = -1
     for aln in in_bam:
+        if aln.is_secondary or aln.is_supplementary:
+            continue
         logger.debug('aln.query_name=' + aln.query_name +' crt_query_name=' + crt_query_name)
         if (crt_best_aln != None
             and (aln.query_name != crt_query_name
@@ -46,8 +48,11 @@ def process_file_sorted(in_bam, out_bam):
         crt_query_name = aln.query_name
         crt_is_read_1 = aln.is_read1
         logger.debug('aln.query_name=' + aln.query_name +' crt_query_name=' + crt_query_name)
-        cigar_prof = cigar_profile(aln.cigartuples)
-        num_matches = cigar_prof[MATCH] + cigar_prof[EQUAL]
+        if not aln.is_unmapped:
+            cigar_prof = cigar_profile(aln.cigartuples)
+            num_matches = cigar_prof[MATCH] + cigar_prof[EQUAL]
+        else:
+            num_matches = 0
         if num_matches > crt_best_num_matches:
             crt_best_aln = aln.__copy__()
             crt_best_num_matches = num_matches
@@ -58,21 +63,23 @@ def process_file_unsorted(in_bam, out_bam):
     # do full pass, keeping best alignment
     best_align = dict()
     for aln in in_bam:
-        logger.debug('aln=' + str(aln))
-        if aln.is_unmapped:
+        if aln.is_secondary or aln.is_supplementary:
             continue
+        logger.debug('aln=' + str(aln))
         # dictionary key for this alignment
         key = (aln.query_name, aln.is_paired, aln.is_read2)
         # compute number of matches
-        cigar_prof = cigar_profile(aln.cigartuples)
-        num_matches = cigar_prof[MATCH] + cigar_prof[EQUAL]
+        if aln.is_unmapped:
+            num_matches = 0
+        else:
+            cigar_prof = cigar_profile(aln.cigartuples)
+            num_matches = cigar_prof[MATCH] + cigar_prof[EQUAL]
         if (key not in best_align
             or best_align[key][0] < num_matches):
             best_align[key] = [num_matches, aln.__copy__()]
     # output best alignments
     for key in best_align:
         out_bam.write(best_align[key][1])
-
 
 if __name__ == "__main__":
     description = """

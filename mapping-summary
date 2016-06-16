@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+import os
+import sys
+import numpy as np
+
+first_dataset = True
+
+def load_data(f):
+    return np.genfromtxt(f.buffer, dtype=None, names=True)
+
+def process_data(d, args):
+    global first_dataset
+    m2_good_v = d['m2'] == 0
+    num_reads = sum(m2_good_v)
+    if num_reads > 0:
+        m0_mis_v = m2_good_v & (d['m0'] != 0)
+        m1_mis_v = m2_good_v & (d['m1'] != 0)
+        n0_mis_v = m2_good_v & (d['n0'] != 0)
+        n1_mis_v = m2_good_v & (d['n1'] != 0)
+        m0_mis =  sum(m0_mis_v) / num_reads
+        m1_mis =  sum(m1_mis_v) / num_reads
+        m_mis =   sum(m0_mis_v | m1_mis_v) / num_reads
+        n0_mis =  sum(n0_mis_v) / num_reads
+        n1_mis =  sum(n1_mis_v) / num_reads
+        n_mis =   sum(n0_mis_v | n1_mis_v) / num_reads
+        mn0_mis = sum(m0_mis_v & n0_mis_v) / num_reads
+        mn1_mis = sum(m1_mis_v & n1_mis_v) / num_reads
+        mn_mis =  sum((m0_mis_v | m1_mis_v) & (n0_mis_v | n1_mis_v)) / num_reads
+        good_v = m2_good_v & ~(m0_mis_v | m1_mis_v | n0_mis_v | n1_mis_v)
+        m0_errors =   sum(d[good_v]['m0_errors'])
+        m1_errors =   sum(d[good_v]['m1_errors'])
+        m2_errors =   sum(d[good_v]['m2_errors'])
+        n0_errors =   sum(d[good_v]['n0_errors'])
+        n1_errors =   sum(d[good_v]['n1_errors'])
+        m0_read_len = sum(d[good_v]['m0_read_len'])
+        m1_read_len = sum(d[good_v]['m1_read_len'])
+        m2_read_len = sum(d[good_v]['m2_read_len'])
+        n0_read_len = sum(d[good_v]['n0_read_len'])
+        n1_read_len = sum(d[good_v]['n1_read_len'])
+        m0_aln_len =  sum(d[good_v]['m0_aln_len'])
+        m1_aln_len =  sum(d[good_v]['m1_aln_len'])
+        m2_aln_len =  sum(d[good_v]['m2_aln_len'])
+        n0_aln_len =  sum(d[good_v]['n0_aln_len'])
+        n1_aln_len =  sum(d[good_v]['n1_aln_len'])
+        m0_epcb = m0_errors / m0_read_len
+        m1_epcb = m1_errors / m1_read_len
+        m2_epcb = m2_errors / m2_read_len
+        n0_epcb = n0_errors / n0_read_len
+        n1_epcb = n1_errors / n1_read_len
+        m_epcb  = (m0_errors + m1_errors) / (m0_read_len + m1_read_len)
+        n_epcb  = (n0_errors + n1_errors) / (n0_read_len + n1_read_len)
+        m0_epab = m0_errors / m0_aln_len
+        m1_epab = m1_errors / m1_aln_len
+        m2_epab = m2_errors / m2_aln_len
+        n0_epab = n0_errors / n0_aln_len
+        n1_epab = n1_errors / n1_aln_len
+        m_epab  = (m0_errors + m1_errors) / (m0_aln_len + m1_aln_len)
+        n_epab  = (n0_errors + n1_errors) / (n0_aln_len + n1_aln_len)
+    else:
+        m0_mis = 0
+        m1_mis = 0
+        m_mis = 0
+        n0_mis = 0
+        n1_mis = 0
+        n_mis = 0
+        mn0_mis = 0
+        mn1_mis = 0
+        mn_mis = 0
+        m0_epcb = 0
+        m1_epcb = 0
+        m2_epcb = 0
+        n0_epcb = 0
+        n1_epcb = 0
+        m_epcb = 0
+        n_epcb = 0
+        m0_epab = 0
+        m1_epab = 0
+        m2_epab = 0
+        n0_epab = 0
+        n1_epab = 0
+        m_epab = 0
+        n_epab = 0
+    if first_dataset:
+        first_dataset = False
+        print('\t'.join(['m0_mis', 'm1_mis', 'm_mis',
+                         'n0_mis', 'n1_mis', 'n_mis',
+                         'mn0_mis', 'mn1_mis', 'mn_mis',
+                         'm0_epcb', 'm1_epcb', 'm2_epcb', 'n0_epcb', 'n1_epcb', 'm_epcb', 'n_epcb', 
+                         'm0_epab', 'm1_epab', 'm2_epab', 'n0_epab', 'n1_epab', 'm_epab', 'n_epab']))
+    print('\t'.join('{0:.3f}'.format(v).lstrip('0')
+                    for v in np.array([m0_mis, m1_mis, m_mis,
+                                       n0_mis, n1_mis, n_mis,
+                                       mn0_mis, mn1_mis, mn_mis,
+                                       m0_epcb, m1_epcb, m2_epcb, n0_epcb, n1_epcb, m_epcb, n_epcb, 
+                                       m0_epab, m1_epab, m2_epab, n0_epab, n1_epab, m_epab, n_epab])))
+
+if __name__ == "__main__":
+    description = """
+Summarize mismappings in each run.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('input', nargs='*', default=['-'], help='Full table tsv file(s).')
+    args = parser.parse_args()
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.info('args: ' + str(args))
+
+    for fn in args.input:
+        if fn != '-':
+            d = load_data(open(fn))
+        else:
+            d = load_data(sys.stdin)
+        logger.debug('d[0]: ' + str(d[0]))
+        process_data(d, args)

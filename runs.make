@@ -39,9 +39,12 @@ ${1}: ${2} | bwa.version ${3}--bwa-index
 	  ${BWA} mem -t ${5} ${4} ${3}.fa - | \
 	  ${PYTHON3} ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
 	} 2>.$$@.log
-${1}.summary.tsv: ${1}
+${1}_summary.tsv: ${1}
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${PYTHON3} ${ROOT_DIR}/make-bam-summary $$< >$$@ 2>.$$@.log
+	{ \
+	  ${PYTHON3} ${ROOT_DIR}/make-bam-summary $$< 2>.$$@.log | \
+	  { read -e line; echo "$$$$line"; sort; }; \
+	} >$$@
 endef
 
 # parameters:
@@ -110,45 +113,41 @@ $(foreach nanocall_opts,$(call get_ds_nanocall_opt_list,${ds}),\
 $(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_nanocall_opt_cmd,${nanocall_opts}),$(call get_nanocall_opt_threads,${nanocall_opts}),20G))))))
 
 define make_m_vs_n_tables
-${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv: \
-	  ${1}.metrichor.${3}.bam.summary.tsv \
-	  ${1}.nanocall~${2}.${3}.bam.summary.tsv
+${1}.metrichor+nanocall~${2}.${3}.bam_summary.tsv: \
+	  ${1}.metrichor.${3}.bam_summary.tsv \
+	  ${1}.nanocall~${2}.${3}.bam_summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
 	  diff -q \
-	    <(head -n1 ${1}.metrichor.${3}.bam.summary.tsv) \
-	    <(head -n1 ${1}.nanocall~${2}.${3}.bam.summary.tsv) >&2 && \
-	  { \
-	    head -n1 $$<; \
-	    for f in $$^; do tail -n+2 $$$$f; done | sort; \
-	  }; \
+	    <(head -n1 ${1}.metrichor.${3}.bam_summary.tsv) \
+	    <(head -n1 ${1}.nanocall~${2}.${3}.bam_summary.tsv) >&2; \
+	  head -n1 $$<; \
+	  sort -m \
+	    <(tail -n+2 ${1}.metrichor.${3}.bam_summary.tsv) \
+	    <(tail -n+2 ${1}.nanocall~${2}.${3}.bam_summary.tsv);
 	} >$$@ 2>.$$@.log
-${1}.metrichor+nanocall~${2}.${3}.error_table.tsv: \
-	  ${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv
+${1}.metrichor+nanocall~${2}.${3}.bam_table.tsv: \
+	  ${1}.metrichor+nanocall~${2}.${3}.bam_summary.tsv
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${PYTHON3} ${ROOT_DIR}/tabulate-errors $$< >$$@ 2>.$$@.log
-${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv: \
-	  ${1}.metrichor+nanocall~${2}.${3}.bam.summary.tsv
-	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${PYTHON3} ${ROOT_DIR}/tabulate-map-pos $$< >$$@ 2>.$$@.log
-${1}.metrichor+nanocall~${2}.${3}.params_table.tsv: \
-	  ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv \
+	${PYTHON3} ${ROOT_DIR}/tabulate-mappings $$< >$$@ 2>.$$@.log
+${1}.metrichor+nanocall~${2}.${3}.full_table.tsv: \
+	  ${1}.metrichor+nanocall~${2}.${3}.bam_table.tsv \
 	  ${1}.metrichor.params.tsv \
 	  ${1}.nanocall~${2}.stats
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
 	  join -t$$$$'\t' \
-	    <(head -n1 ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv) \
+	    <(head -n1 ${1}.metrichor+nanocall~${2}.${3}.bam_table.tsv) \
 	    <(head -n1 ${1}.metrichor.params.tsv) | \
 	  join -t$$$$'\t' \
 	    - \
-	    <(head -n1 ${1}.nanocall~${2}.stats | cut -f 2,5-); \
+	    <(head -n1 ${1}.nanocall~${2}.stats | cut -f 2-); \
 	  join -t$$$$'\t' \
-	    <(tail -n+2 ${1}.metrichor+nanocall~${2}.${3}.map_pos_table.tsv | sort -k1) \
+	    <(tail -n+2 ${1}.metrichor+nanocall~${2}.${3}.bam_table.tsv | sort -k1) \
 	    <(tail -n+2 ${1}.metrichor.params.tsv | sort -k1) | \
 	  join -t$$$$'\t' \
 	    - \
-	    <(tail -n+2 ${1}.nanocall~${2}.stats | cut -f 2,5- | sort -k1); \
+	    <(tail -n+2 ${1}.nanocall~${2}.stats | cut -f 2- | sort -k1); \
 	} >$$@ 2>.$$@.log
 endef
 
@@ -166,7 +165,7 @@ ${1}.${2}.metrichor: \
 	${1}.${2}.metrichor.params.tsv \
 	$(foreach mapper,$(call get_ds_mappers,${1}),\
 	$(foreach mapper_opts,$(call get_ds_mapper_opt_list,${1},${mapper}),\
-	${1}.${2}.metrichor.${mapper}~${mapper_opts}.bam.summary.tsv))
+	${1}.${2}.metrichor.${mapper}~${mapper_opts}.bam_summary.tsv))
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
@@ -181,14 +180,11 @@ ${1}.${2}.nanocall~${3}: \
 	${1}.${2}.nanocall~${3}.stats \
 	$(foreach mapper,$(call get_ds_mappers,${1}),\
 	$(foreach mapper_opts,$(call get_ds_mapper_opt_list,${1},${mapper}),\
-	${1}.${2}.nanocall~${3}.${mapper}~${mapper_opts}.bam.summary.tsv))
+	${1}.${2}.nanocall~${3}.${mapper}~${mapper_opts}.bam_summary.tsv))
 ${1}.${2}.metrichor+nanocall~${3}: \
 	$(foreach mapper,$(call get_ds_mappers,${1}),\
 	$(foreach mapper_opts,$(call get_ds_mapper_opt_list,${1},${mapper}),\
-	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.bam.summary.tsv \
-	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.error_table.tsv \
-	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.map_pos_table.tsv \
-	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.params_table.tsv))
+	${1}.${2}.metrichor+nanocall~${3}.${mapper}~${mapper_opts}.full_table.tsv))
 endef
 $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
@@ -208,19 +204,21 @@ ${1}.${2}.nanocall--${3}: \
 ${1}.${2}.metrichor+nanocall--${3}: \
 	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
 	${1}.${2}.metrichor+nanocall~${nanocall_opts}) \
-	${1}.${2}.summary.${3}.map_pos.tsv \
-	${1}.${2}.summary.${3}.errors.tsv \
+	${1}.${2}.summary.${3}.mapping.tsv \
 	${1}.${2}.summary.${3}.runtime.tsv
-${1}.${2}.summary.${3}.errors.tsv: \
+${1}.${2}.summary.${3}.mapping.tsv: \
 	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
-	${1}.${2}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.error_table.tsv)
+	${1}.${2}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.full_table.tsv)
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/error-summary $$^ >$$@ 2>.$$@.log
-${1}.${2}.summary.${3}.map_pos.tsv: \
-	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
-	${1}.${2}.metrichor+nanocall~${nanocall_opts}.bwa~ont2d.map_pos_table.tsv)
-	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
-	${ROOT_DIR}/map-pos-summary $$^ >$$@ 2>.$$@.log
+	paste \
+	  <( \
+	    printf "%s\t%s\t%s\n" "nanocall_tag" "aln" "aln_tag"; \
+	    for n_opt in $(call get_pack_nanocall_opt_list,${3}); do \
+	      printf "%s\t%s\t%s\n" "$$$$n_opt" "bwa" "ont2d"; \
+	    done; \
+	  ) \
+	  <(${ROOT_DIR}/mapping-summary $$^) \
+	  >$$@ 2>.$$@.log
 ${1}.${2}.summary.${3}.runtime.tsv: ${1}.${2}.metrichor.2.fq.gz \
 	$(foreach nanocall_opts,$(call get_pack_nanocall_opt_list,${3}),\
 	${1}.${2}.nanocall~${nanocall_opts}.log)
