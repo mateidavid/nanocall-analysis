@@ -1,10 +1,76 @@
-#!/bin/bash
-source "$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")"/common.sh
+#!/usr/bin/env python3
 
-join -t$'\t' <(sort ${1}) <(sort ${2}) |
-join -t$'\t' - <(sort ${3}) |
-sort -k5n |
-cut -f 1,4,5,30,31,42 |
-${PYTHON3} ${ROOT_DIR}/highlight-columns |
-sed 's/\t/\t\&\t/g;s/_/\\_/g;s/\<0\././g;s/$/\t\\\\/' |
-awk -F$'\t' -v OFS=$'\t' '{$1 = "\t&\t\\texttt{" $1 "}"; print}'
+import argparse
+import logging
+import operator
+import os
+import sys
+
+import numpy as np
+import numpy.lib.recfunctions as rfn
+
+output_keys = ['nanocall_tag', 'm_mis', 'n_mis', 'm_epcb', 'n_epcb', 'total_kbp_per_ch']
+highlight_keys = {'n_mis': 0, 'n_epcb': 0, 'total_kbp_per_ch': 1}
+
+def process_files(mapping_fn, runtime_fn):
+    mapping_a = np.genfromtxt(mapping_fn, dtype=None, names=True)
+    runtime_a = np.genfromtxt(runtime_fn, dtype=None, names=True)
+    assert(mapping_a.size == runtime_a.size)
+    assert('nanocall_tag' in mapping_a.dtype.names)
+    assert('nanocall_tag' in runtime_a.dtype.names)
+    mapping_a.sort(order='nanocall_tag')
+    runtime_a.sort(order='nanocall_tag')
+    assert(list(mapping_a['nanocall_tag']) == list(runtime_a['nanocall_tag']))
+    rest_fields = list(runtime_a.dtype.names)
+    rest_fields.remove('nanocall_tag')
+    a = rfn.merge_arrays([mapping_a, runtime_a[rest_fields]], flatten=True, usemask=False)
+    a.sort(order='n_mis')
+    logger.debug('a: ' + str(a[output_keys]))
+    # compute highlights
+    best_index = dict()
+    for k in highlight_keys.keys():
+        assert(k in a.dtype.names)
+        if highlight_keys[k] == 0:
+            best_index[k], _ = min(enumerate(a[k]), key=operator.itemgetter(1))
+        else:
+            best_index[k], _ = max(enumerate(a[k]), key=operator.itemgetter(1))
+    for i in range(a.size):
+        l = list()
+        l += ['']
+        for k in output_keys:
+            if type(a[i][k]) == np.bytes_:
+                sval = a[i][k].decode()
+            else:
+                sval = str(a[i][k])
+            # remove leading 0
+            if sval[:2] == '0.':
+                sval = sval[1:]
+            # escape underscores
+            sval = sval.replace('_', '\\_')
+            # use tt for tag
+            if k == 'nanocall_tag':
+                sval = '\\texttt{' + sval + '}'
+            if k not in highlight_keys.keys() or i != best_index[k]:
+                l.append(sval)
+            else:
+                l.append('\\textbf{' + sval + '}')
+        print('\t&\t'.join(l) + '\t\\\\')
+
+if __name__ == '__main__':
+    description = """
+Make tex summary table for given option pack.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('input', nargs=2, help='Mapping and runtime summaries.')
+    args = parser.parse_args()
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.debug('args: ' + str(args))
+
+    process_files(args.input[0], args.input[1])

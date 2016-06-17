@@ -34,8 +34,7 @@ define make_table_main
 # 1: ds
 # 2: ss
 exports/table_main_${1}_${2}.tex: \
-	${1}.${2}.summary.main.map_pos.tsv \
-	${1}.${2}.summary.main.errors.tsv \
+	${1}.${2}.summary.main.mapping.tsv \
 	${1}.${2}.summary.main.runtime.tsv \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
@@ -53,8 +52,7 @@ define make_table_main_r9
 # 1: ds
 # 2: ss
 exports/table_main_r9_${1}_${2}.tex: \
-	${1}.${2}.summary.main_r9.map_pos.tsv \
-	${1}.${2}.summary.main_r9.errors.tsv \
+	${1}.${2}.summary.main_r9.mapping.tsv \
 	${1}.${2}.summary.main_r9.runtime.tsv \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
@@ -73,8 +71,7 @@ define make_table_main_aux_rt
 # 2: ss1
 # 3: ss2
 exports/table_main_aux_rt_${1}_${2}_${3}.tex: \
-	${1}.${2}.summary.main.map_pos.tsv \
-	${1}.${2}.summary.main.errors.tsv \
+	${1}.${2}.summary.main.mapping.tsv \
 	${1}.${3}.summary.main.runtime.tsv \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
@@ -90,8 +87,7 @@ define make_table_train_stop
 # 1: ds
 # 2: ss
 exports/table_train_stop_${1}_${2}.tex: \
-	${1}.${2}.summary.train_stop.map_pos.tsv \
-	${1}.${2}.summary.train_stop.errors.tsv \
+	${1}.${2}.summary.train_stop.mapping.tsv \
 	${1}.${2}.summary.train_stop.runtime.tsv \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
@@ -110,8 +106,7 @@ define make_table_default_transitions
 # 1: ds
 # 2: ss
 exports/table_default_transitions_${1}_${2}.tex: \
-	${1}.${2}.summary.default_transitions.map_pos.tsv \
-	${1}.${2}.summary.default_transitions.errors.tsv \
+	${1}.${2}.summary.default_transitions.mapping.tsv \
 	${1}.${2}.summary.default_transitions.runtime.tsv \
 	| exports
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
