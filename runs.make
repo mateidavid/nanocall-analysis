@@ -124,7 +124,7 @@ ${1}.metrichor+nanocall~${2}.${3}.bam_summary.tsv: \
 	  head -n1 $$<; \
 	  sort -m \
 	    <(tail -n+2 ${1}.metrichor.${3}.bam_summary.tsv) \
-	    <(tail -n+2 ${1}.nanocall~${2}.${3}.bam_summary.tsv);
+	    <(tail -n+2 ${1}.nanocall~${2}.${3}.bam_summary.tsv); \
 	} >$$@ 2>.$$@.log
 ${1}.metrichor+nanocall~${2}.${3}.bam_table.tsv: \
 	  ${1}.metrichor+nanocall~${2}.${3}.bam_summary.tsv
