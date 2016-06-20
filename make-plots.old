@@ -1,0 +1,543 @@
+#!/usr/bin/env python3
+
+import argparse
+import collections
+import itertools
+import logging
+import operator
+import os
+import sys
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import matplotlib.colors
+import matplotlib.ticker
+import numpy as np
+
+def thousands(x, pos):
+    """The two args are the value and tick position"""
+    return '%dk' % (x * 1e-3)
+
+strand_name_dict = {
+    0: 'Template',
+    1: 'Complement'
+}
+rt_name_dict = {
+    'n0': 'Nanocall Template',
+    'n1': 'Nanocall Complement',
+    'm0': 'Metrichor Template',
+    'm1': 'Metrichor Complement',
+    'm2': 'Metrichor 2D'
+}
+# measure properties
+measure_props = {
+    'scale': {
+        'name': 'Scale',
+        'limits': (0, 2),
+        'ticks': np.arange(0, 2.01, .5)
+        },
+    'shift': {
+        'name': 'Shift',
+        'limits': (-10, 30),
+        'ticks': np.arange(-10, 30.01, 10)
+        },
+    'read_len': {
+        'name': 'Read Length',
+        'limits': (0, 30000),
+        'ticks': np.arange(0, 30001, 5000),
+        'formatter': matplotlib.ticker.FuncFormatter(thousands)
+        },
+    'frac_align': {
+        'name': 'Read Fraction Aligned',
+        'limits': (0, 1),
+        'ticks': np.arange(0, 1.01, .2)
+        },
+    'frac_identity': {
+        'name': 'Alignment Identity',
+        'limits': (0, 1),
+        'ticks': np.arange(0, 1.01, .2)
+        }
+}
+# colormaps
+cm_by_st = {
+    0: 'Blues',
+    1: 'Reds'
+}
+cm_by_rt = {
+    'm0': 'Greens',
+    'm1': 'Oranges',
+    'm2': 'Greys',
+    'n0': 'Blues',
+    'n1': 'Reds'
+}
+# norm
+bnd_nm = matplotlib.colors.BoundaryNorm([0] + [10**i for i in range(5)], 256)
+
+def cmap_discretize(cmap, N):
+    """Return a discrete colormap from the continuous colormap cmap.
+    
+        cmap: colormap instance, eg. cm.jet. 
+        N: number of colors.
+    
+    Example
+        x = resize(arange(100), (5,100))
+        djet = cmap_discretize(cm.jet, 5)
+        imshow(x, cmap=djet)
+    """
+    
+    if type(cmap) == str:
+        cmap = get_cmap(cmap)
+    colors_i = concatenate((linspace(0, 1., N), (0.,0.,0.,0.)))
+    colors_rgba = cmap(colors_i)
+    indices = linspace(0, 1., N+1)
+    cdict = {}
+    for ki,key in enumerate(('red','green','blue')):
+        cdict[key] = [ (indices[i], colors_rgba[i-1,ki], colors_rgba[i,ki]) for i in range(N+1) ]
+    # Return colormap object.
+    return matplotlib.colors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024)
+
+def add_subplot_axes(ax, rect, axisbg='w'):
+    """
+    http://stackoverflow.com/a/17479417/717706
+    """
+    fig = plt.gcf()
+    box = ax.get_position()
+    width = box.width
+    height = box.height
+    inax_position  = ax.transAxes.transform(rect[0:2])
+    transFigure = fig.transFigure.inverted()
+    infig_position = transFigure.transform(inax_position)    
+    x = infig_position[0]
+    y = infig_position[1]
+    width *= rect[2]
+    height *= rect[3]
+    subax = fig.add_axes([x,y,width,height],axisbg=axisbg)
+    #x_labelsize = subax.get_xticklabels()[0].get_size()
+    #y_labelsize = subax.get_yticklabels()[0].get_size()
+    #x_labelsize *= rect[2]**0.5
+    #y_labelsize *= rect[3]**0.5
+    #subax.xaxis.set_tick_params(labelsize=x_labelsize)
+    #subax.yaxis.set_tick_params(labelsize=y_labelsize)
+    return subax
+
+def make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, x_measure_name, y_measure_name, **kwargs):
+    ax.set_xlim(measure_props[x_measure_name]['limits'], auto=False)
+    ax.set_ylim(measure_props[y_measure_name]['limits'], auto=False)
+    ax.set_xticks(measure_props[x_measure_name]['ticks'])
+    ax.set_yticks(measure_props[y_measure_name]['ticks'])
+    if 'formatter' in measure_props[x_measure_name] and ax.xaxis.get_major_formatter() != matplotlib.ticker.NullFormatter:
+        ax.xaxis.set_major_formatter(measure_props[x_measure_name]['formatter'])
+    if 'formatter' in measure_props[y_measure_name] and ax.yaxis.get_major_formatter() != matplotlib.ticker.NullFormatter:
+        ax.yaxis.set_major_formatter(measure_props[y_measure_name]['formatter'])
+    ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+    ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+    ax.grid(which='both')
+    x = [d[rid][x_rt][x_measure_name] for rid in d
+         if d[rid][x_rt]['correct'] and d[rid][y_rt]['correct']]
+    y = [d[rid][y_rt][y_measure_name] for rid in d
+         if d[rid][x_rt]['correct'] and d[rid][y_rt]['correct']]
+    artist = ax.hexbin(x, y, gridsize=50, mincnt=1,
+                       extent=measure_props[x_measure_name]['limits'] + measure_props[y_measure_name]['limits'],
+                       **kwargs)
+    return artist
+
+def make_figure_id_vs_aln(fig_id, data, names):
+    clear_fig(fig_id)
+    ## fig.suptitle('Mapped Fraction vs Identity')
+    rt_l = ['n0', 'n1', 'm0', 'm1', 'm2']
+    fig, ax_a = plt.subplots(
+        len(data) + 1, len(rt_l), sharex=False, sharey=False, squeeze=False,
+        gridspec_kw={
+            'hspace': .2,
+            'wspace': .1,
+            'height_ratios': [20] * len(data) + [1],
+            'width_ratios': [20] * len(rt_l)
+            },
+        num=fig_id, figsize=(5 * len(rt_l), 5 * len(data)))
+        #num=fig_id, figsize=(5 * len(data), 5 * len(rt_l)))
+    fig.text(0.5, 0.04, measure_props['frac_identity']['name'], ha='center', va='center')
+    fig.text(0.04, 0.5, measure_props['frac_align']['name'], ha='center', va='center', rotation='vertical')
+    for i in range(len(data)):
+        for j in range(len(rt_l)):
+            d = data[i]
+            rt = rt_l[j]
+            ax = ax_a[i][j]
+            artist = make_plot_n_vs_m_measure(ax, d, rt, rt, 'frac_identity', 'frac_align',
+                                              cmap=cm_by_rt[rt], norm=bnd_nm)
+            if i == 0:
+                ax.set_title(rt_name_dict[rt], fontsize=12)
+            if j == 0:
+                ax.set_ylabel(names[i], fontsize=12)
+            if i < len(data) - 1:
+                ax.set_xticklabels([], visible=False)
+            if j > 0:
+                ax.set_yticklabels([], visible=False)
+            if i == len(data) - 1:
+                #cax = add_subplot_axes(ax, [0.1, -0.15, 0.8, 0.05])
+                cax = ax_a[len(data)][j]
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def make_figure_measure(fig_id, data, names, measure_name, vs2d=False):
+    clear_fig(fig_id)
+    fig, ax_a = plt.subplots(
+        len(data) + 1, 2, sharex=False, sharey=False, squeeze=False,
+        gridspec_kw={
+            'hspace': .2,
+            'wspace': .1,
+            'height_ratios': [20] * len(data) + [1],
+            'width_ratios': [1, 1]
+            },
+        num=fig_id, figsize=(10, 5 * len(data)))
+    ##fig.suptitle('Nanocall vs Metrichor ' + ['same strand', '2D'][vs2d] + ': ' + measure_props[measure_name]['name'])
+    fig.text(0.5, 0.04, 'Metrichor' + ['', ' 2D'][vs2d] + ': ' + measure_props[measure_name]['name'], ha='center', va='center')
+    fig.text(0.04, 0.5, 'Nanocall: ' + measure_props[measure_name]['name'], ha='center', va='center', rotation='vertical')
+    for i in range(len(data)):
+        for st in range(2):
+            d = data[i]
+            ax = ax_a[i][st]
+            x_rt = 'm' + str([st, 2][vs2d])
+            y_rt = 'n' + str(st)
+            artist = make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, measure_name, measure_name,
+                                              cmap=cm_by_st[st], norm=bnd_nm)
+            if i == 0:
+                ax.set_title(strand_name_dict[st], fontsize=12)
+            if st == 0:
+                ax.set_ylabel(names[i], fontsize=12)
+            if i < len(data) - 1:
+                ax.set_xticklabels([], visible=False)
+            if st > 0:
+                ax.set_yticklabels([], visible=False)
+            if i == len(data) - 1:
+                #cax = add_subplot_axes(ax, [0.1, [-0.15, 0.9][cb_top], 0.8, 0.05])
+                cax = ax_a[len(data)][st]
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def make_figure_dataset_measures(fig_id, data, names, idx):
+    clear_fig(fig_id)
+    measure_name_list = ['frac_identity', 'read_len', 'frac_align']
+    d = data[idx]
+    d_name = names[idx]
+    fig, ax_a = plt.subplots(
+        2 * len(measure_name_list) + 1, 2, sharex=False, sharey=False, squeeze=False,
+        gridspec_kw={
+            'hspace': .2,
+            'wspace': .1,
+            'height_ratios': [20] * (2 * len(measure_name_list)) + [1],
+            'width_ratios': [1, 1]
+            },
+        num=fig_id, figsize=(10, 5 * 2 * len(measure_name_list)))
+    for i in range(len(measure_name_list)):
+        measure_name = measure_name_list[i]
+        for vs2d in range(2):
+            for st in range(2):
+                ax = ax_a[2 * i + vs2d][st]
+                x_rt = 'm' + str([st, 2][vs2d])
+                y_rt = 'n' + str(st)
+                artist = make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, measure_name, measure_name,
+                                              cmap=cm_by_st[st], norm=bnd_nm)
+                if i == 0 and vs2d == 0:
+                    ax.set_title(strand_name_dict[st], fontsize=12)
+                if st == 0:
+                    ax.set_ylabel(measure_props[measure_name]['name'] + ['', ' vs 2D'][vs2d], fontsize=12)
+                if vs2d == 0:
+                    ax.set_xticklabels([], visible=False)
+                if st > 0:
+                    ax.set_yticklabels([], visible=False)
+                if i == len(measure_name_list) - 1 and vs2d == 1:
+                    cax = ax_a[2 * len(measure_name_list)][st]
+                    fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def make_figure_dataset_measures_by_st(fig_id, data, names, idx, st):
+    clear_fig(fig_id)
+    measure_name_list = ['frac_identity', 'read_len', 'frac_align']
+    d = data[idx]
+    d_name = names[idx]
+    fig, ax_a = plt.subplots(
+        len(measure_name_list) + 1, 2, sharex=False, sharey=False, squeeze=False,
+        gridspec_kw={
+            'hspace': .2,
+            'wspace': .1,
+            'height_ratios': [20] * (len(measure_name_list)) + [1],
+            'width_ratios': [1, 1]
+            },
+        num=fig_id, figsize=(10, 5 * len(measure_name_list)))
+    for i in range(len(measure_name_list)):
+        measure_name = measure_name_list[i]
+        for vs2d in range(2):
+            ax = ax_a[i][vs2d]
+            x_rt = 'm' + str([st, 2][vs2d])
+            y_rt = 'n' + str(st)
+            artist = make_plot_n_vs_m_measure(ax, d, x_rt, y_rt, measure_name, measure_name,
+                                          cmap=cm_by_st[st], norm=bnd_nm)
+            if i == 0:
+                ax.set_title('vs ' + ['1D', '2D'][vs2d], fontsize=12)
+            if vs2d == 0:
+                ax.set_ylabel(measure_props[measure_name]['name'], fontsize=12)
+            if vs2d == 1:
+                ax.set_yticklabels([], visible=False)
+            if i == len(measure_name_list) - 1:
+                cax = ax_a[i + 1][vs2d]
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def make_plot_n_vs_m_param(ax, d, param_name, st, **kwargs):
+    ax.set_xlim(measure_props[param_name]['limits'], auto=False)
+    ax.set_ylim(measure_props[param_name]['limits'], auto=False)
+    ax.set_xticks(measure_props[param_name]['ticks'])
+    ax.set_yticks(measure_props[param_name]['ticks'])
+    if 'formatter' in measure_props[param_name]:
+        ax.xaxis.set_major_formatter(measure_props[param_name]['formatter'])
+        ax.yaxis.set_major_formatter(measure_props[param_name]['formatter'])
+    ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+    ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+    ax.grid(which='both')
+    x_rt = 'm' + str(st)
+    y_rt = 'n' + str(st)
+    x = [e[x_rt + '_' + param_name] for e in d
+         if e['m2'] == 0 and (st == 0 or e['m1_model_name'] == e['n1_model_name'])]
+    y = [e[y_rt + '_' + param_name] for e in d
+         if e['m2'] == 0 and (st == 0 or e['m1_model_name'] == e['n1_model_name'])]
+    artist = ax.hexbin(x, y, gridsize=50, mincnt=1,
+                       extent=(measure_props[param_name]['limits'] * 2),
+                       **kwargs)
+    return artist
+
+def make_figure_param(fig_id, data, names, param_name):
+    clear_fig(fig_id)
+    fig, ax_a = plt.subplots(
+        len(data) + 1, 2, sharex=False, sharey=False, squeeze=False,
+        subplot_kw={
+            #'aspect': 'equal'
+            'adjustable': 'box-forced'
+            },
+        gridspec_kw={
+            'hspace': .2,
+            'wspace': .1,
+            'height_ratios': [20] * len(data) + [1],
+            'width_ratios': [1, 1]
+            },
+        num=fig_id, figsize=(11, 5 * len(data)))
+    fig.text(0.5, 0.04, 'Metrichor: ' + measure_props[param_name]['name'], ha='center', va='center')
+    fig.text(0.04, 0.5, 'Nanocall: ' + measure_props[param_name]['name'], ha='center', va='center', rotation='vertical')
+    for i in range(len(data)):
+        for st in range(2):
+            d = data[i]
+            ax = ax_a[i][st]
+            artist = make_plot_n_vs_m_param(ax, d, param_name, st,
+                                            cmap=cm_by_st[st], norm=bnd_nm)
+            if i == 0:
+                ax.set_title(strand_name_dict[st], fontsize=12)
+            if st == 0:
+                ax.set_ylabel(names[i], fontsize=12)
+            if i < len(data) - 1:
+                ax.set_xticklabels([], visible=False)
+            if st > 0:
+                ax.set_yticklabels([], visible=False)
+            if i == len(data) - 1:
+                #cax = add_subplot_axes(ax, [0.1, [-0.15, 0.9][cb_top], 0.8, 0.05])
+                cax = ax_a[len(data)][st]
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def make_figure_dataset_params(fig_id, data, names, idx):
+    clear_fig(fig_id)
+    param_name_list = ['scale', 'shift']
+    d = data[idx]
+    d_name = names[idx]
+    fig, ax_a = plt.subplots(
+        3, 2, sharex=False, sharey=False, squeeze=False,
+        gridspec_kw={
+            'hspace': .2,
+            'wspace': .1,
+            'height_ratios': [20, 20, 1],
+            'width_ratios': [1, 1]
+            },
+        #subplot_kw={
+        #    'aspect': 'equal',
+        #    'adjustable': 'box-forced'
+        #    },
+        num=fig_id, figsize=(10, 10))
+    #fig.suptitle('Parameters: ' + d_name)
+    for i in range(2):
+        for st in range(2):
+            ax = ax_a[i][st]
+            param_name = param_name_list[i]
+            artist = make_plot_n_vs_m_param(ax, d, param_name, st,
+                                            cmap=cm_by_st[st], norm=bnd_nm)
+            if i == 0:
+                ax.set_title(strand_name_dict[st], fontsize=12)
+            if st == 0:
+                ax.set_ylabel(measure_props[param_name]['name'], fontsize=12)
+            if st > 0:
+                ax.set_yticklabels([], visible=False)
+            if i == 1:
+                #cax = add_subplot_axes(ax, [0.1, -0.15, 0.8, 0.05])
+                cax = ax_a[2][st]
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
+    return fig
+
+def load_bam_summary(fn):
+    _d = np.genfromtxt(fn, names=True, dtype=None)
+    res = dict()
+    for i in range(len(_d)):
+        rn = _d[i]['read_name'].decode()
+        rt = _d[i]['read_type'].decode()
+        rt = rt[0] + rt[-1]
+        if rn not in res:
+            res[rn] = dict()
+        res[rn][rt] = {
+            'read_len': _d[i]['read_len'],
+            'align_chr': _d[i]['align_chr'].decode(),
+            'align_start': _d[i]['align_pos'],
+            'align_ref_len': _d[i]['align_len'],
+            'align_end': _d[i]['align_pos'] + _d[i]['align_len'],
+            'align_read_len': _d[i]['read_len'] - _d[i]['unalign_len'],
+            'errors': _d[i]['tot_errors']}
+        res[rn][rt]['frac_align'] = res[rn][rt]['align_read_len'] / res[rn][rt]['read_len']
+        res[rn][rt]['frac_identity'] = 1 - res[rn][rt]['errors'] / res[rn][rt]['read_len']
+    return res
+
+def filter_bam_summary(data, ds_idx):
+    """
+    Keep only reads with Metrichor 2D basecalls. If any other set of basecalls
+    aligns to a different location, assume those basecalls are wrong.
+    """
+    cnt = collections.Counter()
+    rn_to_remove = list()
+    for rn in data.keys():
+        if 'm2' not in data[rn]:
+            rn_to_remove.append(rn)
+            cnt['m2_missing'] += 1
+            continue
+        data[rn]['m2']['correct'] = True
+        for rt in ['m0', 'm1', 'n0', 'n1']:
+            if rt not in data[rn]:
+                logger.debug('ds=' + str(ds_idx) + ' rn=' + rn + ' missing=' + rt)
+                data[rn][rt] = { 'correct': False }
+                cnt[rt + '_missing'] += 1
+            # check alignment pos matches that of 2D basecalls
+            elif (data[rn][rt]['align_chr'] != data[rn]['m2']['align_chr']
+                  or min(data[rn][rt]['align_end'], data[rn]['m2']['align_end'])
+                  - max(data[rn][rt]['align_start'], data[rn]['m2']['align_start']) <= 0):
+                logger.debug('ds=' + str(ds_idx) + ' rn=' + rn + ' bad=' + rt + ' data=' + str(data[rn]))
+                data[rn][rt]['correct'] = False
+                cnt[rt + '_bad'] += 1
+            else:
+                data[rn][rt]['correct'] = True
+        data[rn]['m'] = { 'correct': data[rn]['m0']['correct'] and data[rn]['m1']['correct'] }
+        data[rn]['n'] = { 'correct': data[rn]['n0']['correct'] and data[rn]['n1']['correct'] }
+    for rn in rn_to_remove:
+        del data[rn]
+    return cnt
+
+def load_params_table(fn):
+    _d = np.genfromtxt(fn, names=True, dtype=None, delimiter='\t')
+    return _d
+
+def write_counts(data, cnt, names):
+    f = open('dataset-summary.txt', 'w')
+    h = ['dataset', 'total_reads', 'm2_missing',
+         'm0_bad', 'n0_bad', 'm0n0_bad',
+         'm1_bad', 'n1_bad', 'm1n1_bad',
+         'm_bad', 'n_bad', 'mn_bad']
+    print('\t'.join(h), file=f)
+    for i in range(len(data)):
+        d = data[i]
+        l = [str(cnt[i]['m2_missing'])]
+        l += [sum((1 for rn in d if not d[rn]['m0']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['n0']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m0']['correct'] and not d[rn]['n0']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m1']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['n1']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m1']['correct'] and not d[rn]['n1']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['n']['correct']))]
+        l += [sum((1 for rn in d if not d[rn]['m']['correct'] and not d[rn]['n']['correct']))]
+        print(names[i] + '\t' + str(len(d)) + '\t' + '\t'.join((str(v) for v in l)), file=f)
+    f.close()
+
+def clear_fig(fig_id):
+    if plt.fignum_exists(fig_id):
+        plt.figure(fig_id)
+        plt.clf()
+
+def save_fig(prefix, args):
+    for fmt in args.format:
+        plt.savefig(prefix + '.' + fmt, dpi=args.dpi)
+
+if __name__ == "__main__" and "__file__" in globals():
+    description = """
+    Create nanocall analysis plots
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', default='info')
+    parser.add_argument('-d', '--dataset', nargs=3, action='append', default=[], help='Dataset: name, bam summary file, params table file.')
+    parser.add_argument('--format', help='Matplotlib output format', action='append', default=[])
+    parser.add_argument('--dpi', help='Output DPI', type=int, default=300)
+    args = parser.parse_args()
+
+    if len(args.format) == 0:
+        args.format.append('png')
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.info('args=' + str(args))
+
+    # read bam summaries
+    names = list()
+    data = list()
+    cnt = list()
+    params_table = list()
+    for ds in args.dataset:
+        names.append(ds[0])
+        d = load_bam_summary(ds[1])
+        c = filter_bam_summary(d, len(cnt) + 1)
+        data.append(d)
+        cnt.append(c)
+        params_table.append(load_params_table(ds[2]))
+
+    logger.info('Dataset names: ' + str(names))
+
+    # write counts
+    write_counts(data, cnt, names)
+
+    # plot identity vs fraction aligned
+    make_figure_id_vs_aln(0, data, names)
+    fig_name = 'figure_id_vs_aln'
+    save_fig(fig_name, args)
+
+    # plot nanocall vs metrichor measures
+    for measure_name in ['read_len', 'frac_align', 'frac_identity']:
+        for vs2d in [0, 1]:
+            fig_name = 'figure_' + measure_name + ['', '_vs2d'][vs2d]
+            make_figure_measure(fig_name, data, names, measure_name, vs2d=vs2d)
+            save_fig(fig_name, args)
+
+    # plot nanocall vs metrichor params
+    for param_name in ['scale', 'shift']:
+        fig_name = 'figure_'  + param_name
+        make_figure_param(fig_name, params_table, names, param_name)
+        save_fig(fig_name, args)
+
+    # make dataset params plots
+    for i in range(len(data)):
+        fig_name = 'figure_' + names[i].lower().replace(' ', '_') + '_params'
+        make_figure_dataset_params(fig_name, params_table, names, i)
+        save_fig(fig_name, args)
+
+    # make dataset measure plots
+    for i in range(len(data)):
+        fig_name = 'figure_' + names[i].lower().replace(' ', '_') + '_measures'
+        make_figure_dataset_measures(fig_name, data, names, i)
+        save_fig(fig_name, args)
+        for st in range(2):
+            fig_name = 'figure_' + names[i].lower().replace(' ', '_') + '_measures_' + strand_name_dict[st].lower()
+            make_figure_dataset_measures_by_st(fig_name, data, names, i, st)
+            save_fig(fig_name, args)

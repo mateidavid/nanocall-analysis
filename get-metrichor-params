@@ -25,6 +25,10 @@ def process_file(fn):
         l += [f5.get_hairpin_split()]
     else:
         l += ['.']
+    if f5.have_ed_events():
+        l += [len(f5.get_ed_events)]
+    else:
+        l += ['.']
     for st in range(2):
         if f5.have_model_path(st):
             mp = f5.get_model_path(st)
@@ -57,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument('input', nargs='?', help='Fast5 file')
     args = parser.parse_args()
 
-    l = ['read_name', 'hairpin_split']
+    l = ['read_name', 'hairpin_pos', 'num_ed_events']
     for st in range(2):
         prefix = 'm' + str(st) + '_'
         l += [prefix + key for key in ['model_name'] + model_keys]
