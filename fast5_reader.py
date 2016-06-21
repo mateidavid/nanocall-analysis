@@ -223,5 +223,4 @@ class File(object):
             path = g + File.hairpin_split_suffix
             if g in self.file and path in self.file:
                 _g = self.file[path]
-                _d = dict(_g.attrs)
-                return _d['split_index']
+                return dict(_g.attrs)
