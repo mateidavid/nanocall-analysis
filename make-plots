@@ -245,6 +245,7 @@ def clear_fig(fig_id):
 def save_fig(prefix, args):
     for fmt in args.format:
         plt.savefig(prefix + '.' + fmt, dpi=args.dpi)
+    plt.close()
 
 def load_data(ds_l):
     datasets = list()
