@@ -26,7 +26,7 @@ def process_file(fn):
     else:
         l += ['.']
     if f5.have_ed_events():
-        l += [len(f5.get_ed_events)]
+        l += [len(f5.get_ed_events()[0])]
     else:
         l += ['.']
     for st in range(2):
