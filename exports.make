@@ -2,13 +2,6 @@ ifndef ROOT_DIR
 $(error Do not use this makefile directly)
 endif
 
-.PHONY: \
-	figures $(foreach fmt,${EXPORT_FORMATS},figures-${fmt}) \
-	tables $(foreach tb,$(call keymap_key_list,export|table),table-${tb})
-
-figures: $(foreach fmt,${EXPORT_FORMATS},figures-${fmt})
-tables: $(foreach tb,$(call keymap_key_list,export|table),table-${tb})
-
 EXPORT_FORMATS = pdf eps
 EXPORT_TARGETS = figures tables
 FIGURES_DPI = 350
@@ -17,6 +10,13 @@ TABLE_MAIN_DATASUBSETS = $(call keymap_val,export|table|main|dss)
 TABLE_MAIN_R9_DATASUBSETS = $(call keymap_val,export|table|main_r9|dss)
 TABLE_TRAIN_STOP_DATASUBSETS = $(call keymap_val,export|table|train_stop|dss)
 TABLE_DEFAULT_TRANSITIONS_DATASUBSETS = $(call keymap_val,export|table|default_transitions|dss)
+
+.PHONY: \
+	figures $(foreach fmt,${EXPORT_FORMATS},figures-${fmt}) \
+	tables $(foreach tb,$(call keymap_key_list,export|table),table-${tb})
+
+figures: $(foreach fmt,${EXPORT_FORMATS},figures-${fmt})
+tables: $(foreach tb,$(call keymap_key_list,export|table),table-${tb})
 
 exports:
 	mkdir -p exports
