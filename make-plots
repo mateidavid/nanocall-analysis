@@ -208,6 +208,7 @@ def write_counts(datasets):
     print('\t'.join(h), file=f)
     for ds in datasets:
         a = ds['table']
+        total_reads = a.size
         m2_good_v = a['m2'] == 0
         num_reads = sum(m2_good_v)
         m0_mis_v = m2_good_v & (a['m0'] != 0)
@@ -228,11 +229,11 @@ def write_counts(datasets):
              mn0_mis, mn1_mis, mn_mis]
         m_hairpin_v = (a['hairpin_pos'] > 0)
         n_hairpin_v = (a['complement_start_idx'] > 0)
-        l += [sum(m_hairpin_v)/num_reads, sum(n_hairpin_v)/num_reads]
+        l += [sum(m_hairpin_v)/total_reads, sum(n_hairpin_v)/total_reads]
         a2 = a[m_hairpin_v & n_hairpin_v]
         good_hairpin_v = abs(a2['hairpin_pos'] - (a2['template_end_idx']+a2['complement_start_idx'])/2) < 100
-        l += [sum(good_hairpin_v)/num_reads]
-        print('\t'.join([ds['name'].replace(' ', '_'), str(a.size), str(num_reads)]
+        l += [sum(good_hairpin_v)/total_reads]
+        print('\t'.join([ds['name'].replace(' ', '_'), str(total_reads), str(num_reads)]
                         + ['{0:.3f}'.format(v).lstrip('0') for v in l]), file=f)
     f.close()
 
