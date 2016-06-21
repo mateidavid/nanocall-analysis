@@ -21,14 +21,19 @@ def process_file(fn):
     read_name = a['read_id'].decode()
 
     l = [read_name]
-    if f5.have_hairpin_split():
-        l += [f5.get_hairpin_split()]
-    else:
-        l += ['0']
     if f5.have_ed_events():
         l += [len(f5.get_ed_events()[0])]
     else:
         l += ['0']
+    if f5.have_hairpin_split():
+        l += [f5.get_hairpin_split()]
+    else:
+        l += ['0']
+    for st in [0, 1]:
+        if f5.have_events(st):
+            l += [f5.get_events(st)[0].size]
+        else:
+            l += [0]
     for st in range(2):
         if f5.have_model_path(st):
             mp = f5.get_model_path(st)
@@ -61,7 +66,7 @@ if __name__ == "__main__":
     parser.add_argument('input', nargs='?', help='Fast5 file')
     args = parser.parse_args()
 
-    l = ['read_name', 'hairpin_pos', 'num_ed_events']
+    l = ['read_name', 'num_events', 'hairpin_pos', 'm0_num_events', 'm1_num_events']
     for st in range(2):
         prefix = 'm' + str(st) + '_'
         l += [prefix + key for key in ['model_name'] + model_keys]
