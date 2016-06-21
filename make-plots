@@ -199,47 +199,90 @@ def load_full_table(fn):
     return a, m
 
 def write_counts(datasets):
-    f = open('dataset-summary.txt', 'w')
-    h = ['dataset', 'total_reads', 'good_reads',
-         'm0_mis', 'm1_mis', 'm_mis',
-         'n0_mis', 'n1_mis', 'n_mis',
-         'mn0_mis', 'mn1_mis', 'mn_mis',
-         'm_hairpin', 'n_hairpin', 'mn_hairpin',
-         'avg_ed_events', 'avg_ed_events_temp', 'avg_ed_events_comp', 'avg_2d_read_len']
-    print('\t'.join(h), file=f)
+    f = open('dataset-summary.tsv', 'w')
+    h = collections.OrderedDict([
+        ('dataset', 's'),
+        ('total_reads', '.0f'),
+        ('avg_events', '.0f'),
+        ('m2_avg_read_len', '.0f'),
+        ('m_hairpin', '.3f'),
+        ('n_hairpin', '.3f'),
+        ('mn_hairpin', '.3f'),
+        ('m0_avg_events', '.0f'),
+        ('m1_avg_events', '.0f'),
+        ('n0_avg_events', '.0f'),
+        ('n1_avg_events', '.0f'),
+        ('m0_avg_read_len', '.0f'),
+        ('m1_avg_read_len', '.0f'),
+        ('n0_avg_read_len', '.0f'),
+        ('n1_avg_read_len', '.0f'),
+        ('m2_aln', '.3f'),
+        ('m0_corr', '.3f'), 
+        ('m1_corr', '.3f'), 
+        ('m_corr', '.3f'),
+        ('n0_corr', '.3f'),
+        ('n1_corr', '.3f'),
+        ('n_corr', '.3f'),
+        ('mn0_corr', '.3f'),
+        ('mn1_corr', '.3f'),
+        ('mn_corr', '.3f')])
+    print('\t'.join(h.keys()), file=f)
     for ds in datasets:
         a = ds['table']
+        v = dict()
+        v['dataset'] = ds['name'].replace(' ', '_')
         total_reads = a.size
-        m2_good_v = a['m2'] == 0
-        num_reads = sum(m2_good_v)
-        m0_mis_v = m2_good_v & (a['m0'] != 0)
-        m1_mis_v = m2_good_v & (a['m1'] != 0)
-        n0_mis_v = m2_good_v & (a['n0'] != 0)
-        n1_mis_v = m2_good_v & (a['n1'] != 0)
-        m0_mis =  sum(m0_mis_v) / num_reads
-        m1_mis =  sum(m1_mis_v) / num_reads
-        m_mis =   sum(m0_mis_v | m1_mis_v) / num_reads
-        n0_mis =  sum(n0_mis_v) / num_reads
-        n1_mis =  sum(n1_mis_v) / num_reads
-        n_mis =   sum(n0_mis_v | n1_mis_v) / num_reads
-        mn0_mis = sum(m0_mis_v & n0_mis_v) / num_reads
-        mn1_mis = sum(m1_mis_v & n1_mis_v) / num_reads
-        mn_mis =  sum((m0_mis_v | m1_mis_v) & (n0_mis_v | n1_mis_v)) / num_reads
-        l = [m0_mis, m1_mis, m_mis,
-             n0_mis, n1_mis, n_mis,
-             mn0_mis, mn1_mis, mn_mis]
+        v['total_reads'] = total_reads
+        v['avg_events'] = np.mean(a['num_events'])
+        v['m2_avg_read_len'] = np.mean(a['m2_read_len'])
+
         m_hairpin_v = (a['hairpin_pos'] > 0)
+        v['m_hairpin'] = sum(m_hairpin_v) / total_reads
+        a_m_hairpin = a[m_hairpin_v]
         n_hairpin_v = (a['complement_start_idx'] > 0)
-        l += [sum(m_hairpin_v)/total_reads, sum(n_hairpin_v)/total_reads]
-        a2 = a[m_hairpin_v & n_hairpin_v]
-        good_hairpin_v = abs(a2['hairpin_pos'] - (a2['template_end_idx']+a2['complement_start_idx'])/2) < 100
-        l += [sum(good_hairpin_v)/total_reads]
-        l += [sum(a['num_ed_events']) / total_reads,
-              sum(a['hairpin_pos']) / total_reads,
-              sum(a['num_ed_events'] - a['hairpin_pos']) / total_reads,
-              sum(a['m2_read_len']) / total_reads]
-        print('\t'.join([ds['name'].replace(' ', '_'), str(total_reads), str(num_reads)]
-                        + ['{0:.3f}'.format(v).lstrip('0') for v in l]), file=f)
+        v['n_hairpin'] = sum(n_hairpin_v) / total_reads
+        a_n_hairpin = a[n_hairpin_v]
+        a_mn_hairpin = a[m_hairpin_v & n_hairpin_v]
+        good_hairpin_v = abs(a_mn_hairpin['hairpin_pos']
+                             - (a_mn_hairpin['template_end_idx'] + a_mn_hairpin['complement_start_idx'])/2) < 100
+        v['mn_hairpin'] = sum(good_hairpin_v) / total_reads
+
+        v['m0_avg_events'] = np.mean(a['m0_end_idx'] - a['m0_start_idx'])
+        v['m1_avg_events'] = np.mean(a_m_hairpin['m1_end_idx'] - a_m_hairpin['m1_start_idx'])
+        v['n0_avg_events'] = np.mean(a['template_end_idx'] - a['template_start_idx'])
+        v['n1_avg_events'] = np.mean(a_n_hairpin['complement_end_idx'] - a_n_hairpin['complement_start_idx'])
+
+        v['m0_avg_read_len'] = np.mean(a['m0_read_len'])
+        v['m1_avg_read_len'] = np.mean(a_m_hairpin['m1_read_len'])
+        v['n0_avg_read_len'] = np.mean(a['n0_read_len'])
+        v['n1_avg_read_len'] = np.mean(a_n_hairpin['n1_read_len'])
+
+        m2_good_v = a['m2'] == 0
+        good_reads = sum(m2_good_v)
+        v['m2_aln'] = good_reads / total_reads
+        m0_corr_v = m2_good_v & (a['m0'] == 0)
+        m1_corr_v = m2_good_v & (a['m1'] == 0)
+        n0_corr_v = m2_good_v & (a['n0'] == 0)
+        n1_corr_v = m2_good_v & (a['n1'] == 0)
+        v['m0_corr'] = sum(m0_corr_v) / good_reads
+        v['m1_corr'] = sum(m1_corr_v) / good_reads
+        v['m_corr']  = sum(m0_corr_v & m1_corr_v) / good_reads
+        v['n0_corr'] = sum(n0_corr_v) / good_reads
+        v['n1_corr'] = sum(n1_corr_v) / good_reads
+        v['n_corr']  = sum(n0_corr_v & n1_corr_v) / good_reads
+        v['mn0_corr'] = sum(m0_corr_v & n0_corr_v) / good_reads
+        v['mn1_corr'] = sum(m1_corr_v & n1_corr_v) / good_reads
+        v['mn_corr']  = sum(m0_corr_v & n0_corr_v & m1_corr_v & n1_corr_v) / good_reads
+        #m0_mis =  sum(m0_mis_v) / good_reads
+        #m1_mis =  sum(m1_mis_v) / good_reads
+        #m_mis =   sum(m0_mis_v | m1_mis_v) / good_reads
+        #n0_mis =  sum(n0_mis_v) / good_reads
+        #n1_mis =  sum(n1_mis_v) / good_reads
+        #n_mis =   sum(n0_mis_v | n1_mis_v) / good_reads
+        #mn0_mis = sum(m0_mis_v & n0_mis_v) / good_reads
+        #mn1_mis = sum(m1_mis_v & n1_mis_v) / good_reads
+        #mn_mis =  sum((m0_mis_v | m1_mis_v) & (n0_mis_v | n1_mis_v)) / good_reads
+        print('\t'.join((('{0:' + h[k] + '}').format(v[k]).lstrip('0') for k in h.keys())), file=f)
     f.close()
 
 def clear_fig(fig_id):
