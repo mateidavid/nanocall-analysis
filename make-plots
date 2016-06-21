@@ -203,7 +203,8 @@ def write_counts(datasets):
     h = ['dataset', 'total_reads', 'good_reads',
          'm0_mis', 'm1_mis', 'm_mis',
          'n0_mis', 'n1_mis', 'n_mis',
-         'mn0_mis', 'mn1_mis', 'mn_mis']
+         'mn0_mis', 'mn1_mis', 'mn_mis',
+         'm_hairpin', 'n_hairpin', 'mn_hairpin']
     print('\t'.join(h), file=f)
     for ds in datasets:
         a = ds['table']
@@ -225,6 +226,12 @@ def write_counts(datasets):
         l = [m0_mis, m1_mis, m_mis,
              n0_mis, n1_mis, n_mis,
              mn0_mis, mn1_mis, mn_mis]
+        m_hairpin_v = (a['hairpin_pos'] > 0)
+        n_hairpin_v = (a['complement_start_idx'] > 0)
+        l += [sum(m_hairpin_v)/num_reads, sum(n_hairpin_v)/num_reads]
+        a2 = a[m_hairpin_v & n_hairpin_v]
+        good_hairpin_v = abs(a2['hairpin_pos'] - (a2['template_end_idx']+a2['complement_start_idx'])/2) < 100
+        l += [sum(good_hairpin_v)/num_reads]
         print('\t'.join([ds['name'].replace(' ', '_'), str(a.size), str(num_reads)]
                         + ['{0:.3f}'.format(v).lstrip('0') for v in l]), file=f)
     f.close()
@@ -291,7 +298,7 @@ if __name__ == "__main__" and "__file__" in globals():
                            cm_by_rt[rt])
                           for rt in ['n0', 'n1', 'm0', 'm1', 'm2']],
                          sup_title='Identity vs Frac. Aligned',
-                         col_title=[strand_name_dict[st] for st in [0, 1]])
+                         col_title=[rt_name_dict[rt] for rt in ['n0', 'n1', 'm0', 'm1', 'm2']])
     fig_name = 'figure_aln_vs_id'
     save_fig(fig_name, args)
 
