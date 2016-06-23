@@ -1,105 +1,123 @@
 #!/usr/bin/env python3
 
 import argparse
+import collections
 import logging
 import os
 import sys
 import numpy as np
 
-first_dataset = True
-
 def load_data(f):
     return np.genfromtxt(f.buffer, dtype=None, names=True)
 
-def process_data(d, args):
-    global first_dataset
-    m2_good_v = d['m2'] == 0
-    num_reads = sum(m2_good_v)
-    if num_reads > 0:
-        m0_mis_v = m2_good_v & (d['m0'] != 0)
-        m1_mis_v = m2_good_v & (d['m1'] != 0)
-        n0_mis_v = m2_good_v & (d['n0'] != 0)
-        n1_mis_v = m2_good_v & (d['n1'] != 0)
-        m0_mis =  sum(m0_mis_v) / num_reads
-        m1_mis =  sum(m1_mis_v) / num_reads
-        m_mis =   sum(m0_mis_v | m1_mis_v) / num_reads
-        n0_mis =  sum(n0_mis_v) / num_reads
-        n1_mis =  sum(n1_mis_v) / num_reads
-        n_mis =   sum(n0_mis_v | n1_mis_v) / num_reads
-        mn0_mis = sum(m0_mis_v & n0_mis_v) / num_reads
-        mn1_mis = sum(m1_mis_v & n1_mis_v) / num_reads
-        mn_mis =  sum((m0_mis_v | m1_mis_v) & (n0_mis_v | n1_mis_v)) / num_reads
-        good_v = m2_good_v & ~(m0_mis_v | m1_mis_v | n0_mis_v | n1_mis_v)
-        m0_errors =   sum(d[good_v]['m0_errors'])
-        m1_errors =   sum(d[good_v]['m1_errors'])
-        m2_errors =   sum(d[good_v]['m2_errors'])
-        n0_errors =   sum(d[good_v]['n0_errors'])
-        n1_errors =   sum(d[good_v]['n1_errors'])
-        m0_read_len = sum(d[good_v]['m0_read_len'])
-        m1_read_len = sum(d[good_v]['m1_read_len'])
-        m2_read_len = sum(d[good_v]['m2_read_len'])
-        n0_read_len = sum(d[good_v]['n0_read_len'])
-        n1_read_len = sum(d[good_v]['n1_read_len'])
-        m0_aln_len =  sum(d[good_v]['m0_aln_len'])
-        m1_aln_len =  sum(d[good_v]['m1_aln_len'])
-        m2_aln_len =  sum(d[good_v]['m2_aln_len'])
-        n0_aln_len =  sum(d[good_v]['n0_aln_len'])
-        n1_aln_len =  sum(d[good_v]['n1_aln_len'])
-        m0_epcb = m0_errors / m0_read_len
-        m1_epcb = m1_errors / m1_read_len
-        m2_epcb = m2_errors / m2_read_len
-        n0_epcb = n0_errors / n0_read_len
-        n1_epcb = n1_errors / n1_read_len
-        m_epcb  = (m0_errors + m1_errors) / (m0_read_len + m1_read_len)
-        n_epcb  = (n0_errors + n1_errors) / (n0_read_len + n1_read_len)
-        m0_epab = m0_errors / m0_aln_len
-        m1_epab = m1_errors / m1_aln_len
-        m2_epab = m2_errors / m2_aln_len
-        n0_epab = n0_errors / n0_aln_len
-        n1_epab = n1_errors / n1_aln_len
-        m_epab  = (m0_errors + m1_errors) / (m0_aln_len + m1_aln_len)
-        n_epab  = (n0_errors + n1_errors) / (n0_aln_len + n1_aln_len)
-    else:
-        m0_mis = 0
-        m1_mis = 0
-        m_mis = 0
-        n0_mis = 0
-        n1_mis = 0
-        n_mis = 0
-        mn0_mis = 0
-        mn1_mis = 0
-        mn_mis = 0
-        m0_epcb = 0
-        m1_epcb = 0
-        m2_epcb = 0
-        n0_epcb = 0
-        n1_epcb = 0
-        m_epcb = 0
-        n_epcb = 0
-        m0_epab = 0
-        m1_epab = 0
-        m2_epab = 0
-        n0_epab = 0
-        n1_epab = 0
-        m_epab = 0
-        n_epab = 0
-    if first_dataset:
-        first_dataset = False
-        print('\t'.join(['m0_mis', 'm1_mis', 'm_mis',
-                         'n0_mis', 'n1_mis', 'n_mis',
-                         'mn0_mis', 'mn1_mis', 'mn_mis',
-                         'm0_epcb', 'm1_epcb', 'm2_epcb', 'n0_epcb', 'n1_epcb', 'm_epcb', 'n_epcb', 
-                         'm0_epab', 'm1_epab', 'm2_epab', 'n0_epab', 'n1_epab', 'm_epab', 'n_epab']))
-    print('\t'.join('{0:.3f}'.format(v).lstrip('0')
-                    for v in np.array([m0_mis, m1_mis, m_mis,
-                                       n0_mis, n1_mis, n_mis,
-                                       mn0_mis, mn1_mis, mn_mis,
-                                       m0_epcb, m1_epcb, m2_epcb, n0_epcb, n1_epcb, m_epcb, n_epcb, 
-                                       m0_epab, m1_epab, m2_epab, n0_epab, n1_epab, m_epab, n_epab])))
+def process_data(arrays, args):
+    h = collections.OrderedDict(
+        [
+            ('total_reads', '.0f'),
+            ('avg_events', '.0f')
+        ] +
+        [
+            (rt + '_hairpin_frac', '.3f')
+            for rt in ['m', 'n', 'common']
+        ] +
+        [
+            (rt + '_avg_events', '.0f')
+            for rt in ['m0', 'm1', 'n0', 'n1']
+        ] +
+        [
+            ('m2_aln_frac', '.3f')
+        ] +
+        [
+            (rt + st + '_corr_frac', '.3f')
+            for rt in ['m', 'n', 'mn']
+            for st in ['0', '1', '']
+        ] +
+        [
+            (rt + '_' + t[0], t[1])
+            for t in [('avg_read_len_all', '.0f'),
+                      ('avg_read_len_m2_aln', '.0f'),
+                      ('avg_read_len_corr', '.0f'),
+                      ('aln_frac', '.3f'),
+                      ('idn_frac', '.3f'),
+                      ('mism_frac', '.3f'),
+                      ('ins_frac', '.3f'),
+                      ('del_frac', '.3f')]
+            for rt in ['m0', 'm1', 'm2', 'n0', 'n1']
+        ])
+    #logger.debug('h: ' + str(h))
+    # header
+    print('\t'.join(h.keys()))
+    for a in arrays:
+        v = collections.defaultdict(float)
+        total_reads = a.size
+        v['total_reads'] = total_reads
+        v['avg_events'] = np.mean(a['num_events'])
+
+        m_hairpin_v = (a['hairpin_pos'] > 0)
+        v['m_hairpin_frac'] = sum(m_hairpin_v) / total_reads
+        a_m_hairpin = a[m_hairpin_v]
+        n_hairpin_v = (a['complement_start_idx'] > 0)
+        v['n_hairpin_frac'] = sum(n_hairpin_v) / total_reads
+        a_n_hairpin = a[n_hairpin_v]
+        a_mn_hairpin = a[m_hairpin_v & n_hairpin_v]
+        good_hairpin_v = abs(a_mn_hairpin['hairpin_pos']
+                             - (a_mn_hairpin['template_end_idx'] + a_mn_hairpin['complement_start_idx'])/2) < 100
+        v['common_hairpin_frac'] = sum(good_hairpin_v) / total_reads
+
+        v['m0_avg_events'] = np.mean(a['m0_end_idx'] - a['m0_start_idx'])
+        v['m1_avg_events'] = np.mean(a_m_hairpin['m1_end_idx'] - a_m_hairpin['m1_start_idx'])
+        v['n0_avg_events'] = np.mean(a['template_end_idx'] - a['template_start_idx'])
+        v['n1_avg_events'] = np.mean(a_n_hairpin['complement_end_idx'] - a_n_hairpin['complement_start_idx'])
+
+        m2_corr_v = a['m2'] == 0
+        v['m2_corr_v'] = m2_corr_v
+        good_reads = sum(m2_corr_v)
+        v['m2_aln_frac'] = good_reads / total_reads
+        if good_reads > 0:
+            m0_corr_v = m2_corr_v & (a['m0'] == 0)
+            m1_corr_v = m2_corr_v & (a['m1'] == 0)
+            n0_corr_v = m2_corr_v & (a['n0'] == 0)
+            n1_corr_v = m2_corr_v & (a['n1'] == 0)
+            v['m0_corr_v'] = m0_corr_v
+            v['m1_corr_v'] = m1_corr_v
+            v['n0_corr_v'] = n0_corr_v
+            v['n1_corr_v'] = n1_corr_v
+            v['m0_corr_frac']   = sum(m0_corr_v) / good_reads
+            v['m1_corr_frac']   = sum(m1_corr_v) / good_reads
+            v['m_corr_frac']    = sum(m0_corr_v & m1_corr_v) / good_reads
+            v['n0_corr_frac']   = sum(n0_corr_v) / good_reads
+            v['n1_corr_frac']   = sum(n1_corr_v) / good_reads
+            v['n_corr_frac']    = sum(n0_corr_v & n1_corr_v) / good_reads
+            v['mn0_corr_frac']  = sum(m0_corr_v & n0_corr_v) / good_reads
+            v['mn1_corr_frac']  = sum(m1_corr_v & n1_corr_v) / good_reads
+            mn_corr_v = m0_corr_v & n0_corr_v & m1_corr_v & n1_corr_v
+            v['mn_corr_frac']   = sum(mn_corr_v) / good_reads
+            a_mn_corr = a[mn_corr_v]
+
+            for rt in ['m0', 'm1', 'm2', 'n0', 'n1']:
+                v[rt + '_avg_read_len_all'] = np.mean(a[a[rt + '_read_len'] > 0][rt + '_read_len'])
+                v[rt + '_avg_read_len_m2_aln'] = np.mean(a[m2_corr_v][a[m2_corr_v][rt + '_read_len'] > 0][rt + '_read_len'])
+
+                a_rt_corr = a[v[rt + '_corr_v']]
+                total_read_len = sum(a_rt_corr[rt + '_read_len'])
+                total_aln_len = sum(a_rt_corr[rt + '_aln_len'])
+                total_errors = sum(a_rt_corr[rt + '_errors'])
+                total_mism = sum(a_rt_corr[rt + '_mism'])
+                total_ins = sum(a_rt_corr[rt + '_ins'])
+                total_del = sum(a_rt_corr[rt + '_del'])
+
+                v[rt + '_avg_read_len_corr'] = np.mean(a_rt_corr[rt + '_read_len'])
+                v[rt + '_aln_frac'] = total_aln_len / total_read_len
+                v[rt + '_idn_frac'] = 1 - total_errors / total_aln_len
+                v[rt + '_mism_frac'] = total_mism / total_aln_len
+                v[rt + '_ins_frac'] = total_ins / total_aln_len
+                v[rt + '_del_frac'] = total_del / total_aln_len
+
+        print('\t'.join((('{0:' + h[k] + '}').format(v[k]).lstrip('0') for k in h.keys())))
 
 if __name__ == "__main__":
     description = """
-Summarize mismappings in each run.
+Summarize mappings in each run.
     """
     parser = argparse.ArgumentParser(description=description, epilog='')
     parser.add_argument('--log-level', help='log level', action='store', default='info')
@@ -112,12 +130,13 @@ Summarize mismappings in each run.
                         format='%(asctime)s %(name)s.%(levelname)s %(message)s',
                         datefmt='%Y/%m/%d %H:%M:%S')
     logger = logging.getLogger(os.path.basename(__file__))
-    logger.info('args: ' + str(args))
+    logger.debug('args: ' + str(args))
 
+    arrays = list()
     for fn in args.input:
         if fn != '-':
             d = load_data(open(fn))
         else:
             d = load_data(sys.stdin)
-        logger.debug('d[0]: ' + str(d[0]))
-        process_data(d, args)
+        arrays.append(d)
+    process_data(arrays, args)
