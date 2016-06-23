@@ -35,11 +35,11 @@ strand_name_dict = {
     1: 'Complement'
 }
 rt_name_dict = {
-    'n0': 'N.Temp',
-    'n1': 'N.Comp',
-    'm0': 'M.Temp',
-    'm1': 'M.Comp',
-    'm2': 'M.2D'
+    'n0': 'Nanocall Template',
+    'n1': 'Nanocall Complement',
+    'm0': 'Metrichor Template',
+    'm1': 'Metrichor Complement',
+    'm2': 'Metrichor 2D'
 }
 # measure properties
 measure_props = {
@@ -96,6 +96,16 @@ cm_by_rt = {
 }
 # norm
 bnd_nm = matplotlib.colors.BoundaryNorm([0] + [10**i for i in range(5)], 256)
+
+def clear_fig(fig_id):
+    if plt.fignum_exists(fig_id):
+        plt.figure(fig_id)
+        plt.clf()
+
+def save_fig(prefix, args):
+    for fmt in args.format:
+        plt.savefig(prefix + '.' + fmt, dpi=args.dpi)
+    plt.close()
 
 def make_plot_measures(ax, ds, p):
     x_measure_name, x_rt, y_measure_name, y_rt, cm = p
@@ -198,103 +208,6 @@ def load_full_table(fn):
     m = (a['m2'] == 0) & (a['m0'] == 0) & (a['m1'] == 0) & (a['n0'] == 0) & (a['n1'] == 0)
     return a, m
 
-def write_counts(datasets):
-    f = open('dataset-summary.tsv', 'w')
-    h = collections.OrderedDict([
-        ('dataset', 's'),
-        ('total_reads', '.0f'),
-        ('avg_events', '.0f'),
-        ('m2_avg_read_len', '.0f'),
-        ('m_hairpin', '.3f'),
-        ('n_hairpin', '.3f'),
-        ('mn_hairpin', '.3f'),
-        ('m0_avg_events', '.0f'),
-        ('m1_avg_events', '.0f'),
-        ('n0_avg_events', '.0f'),
-        ('n1_avg_events', '.0f'),
-        ('m0_avg_read_len', '.0f'),
-        ('m1_avg_read_len', '.0f'),
-        ('n0_avg_read_len', '.0f'),
-        ('n1_avg_read_len', '.0f'),
-        ('m2_aln', '.3f'),
-        ('m0_corr', '.3f'), 
-        ('m1_corr', '.3f'), 
-        ('m_corr', '.3f'),
-        ('n0_corr', '.3f'),
-        ('n1_corr', '.3f'),
-        ('n_corr', '.3f'),
-        ('mn0_corr', '.3f'),
-        ('mn1_corr', '.3f'),
-        ('mn_corr', '.3f')])
-    print('\t'.join(h.keys()), file=f)
-    for ds in datasets:
-        a = ds['table']
-        v = dict()
-        v['dataset'] = ds['name'].replace(' ', '_')
-        total_reads = a.size
-        v['total_reads'] = total_reads
-        v['avg_events'] = np.mean(a['num_events'])
-        v['m2_avg_read_len'] = np.mean(a['m2_read_len'])
-
-        m_hairpin_v = (a['hairpin_pos'] > 0)
-        v['m_hairpin'] = sum(m_hairpin_v) / total_reads
-        a_m_hairpin = a[m_hairpin_v]
-        n_hairpin_v = (a['complement_start_idx'] > 0)
-        v['n_hairpin'] = sum(n_hairpin_v) / total_reads
-        a_n_hairpin = a[n_hairpin_v]
-        a_mn_hairpin = a[m_hairpin_v & n_hairpin_v]
-        good_hairpin_v = abs(a_mn_hairpin['hairpin_pos']
-                             - (a_mn_hairpin['template_end_idx'] + a_mn_hairpin['complement_start_idx'])/2) < 100
-        v['mn_hairpin'] = sum(good_hairpin_v) / total_reads
-
-        v['m0_avg_events'] = np.mean(a['m0_end_idx'] - a['m0_start_idx'])
-        v['m1_avg_events'] = np.mean(a_m_hairpin['m1_end_idx'] - a_m_hairpin['m1_start_idx'])
-        v['n0_avg_events'] = np.mean(a['template_end_idx'] - a['template_start_idx'])
-        v['n1_avg_events'] = np.mean(a_n_hairpin['complement_end_idx'] - a_n_hairpin['complement_start_idx'])
-
-        v['m0_avg_read_len'] = np.mean(a['m0_read_len'])
-        v['m1_avg_read_len'] = np.mean(a_m_hairpin['m1_read_len'])
-        v['n0_avg_read_len'] = np.mean(a['n0_read_len'])
-        v['n1_avg_read_len'] = np.mean(a_n_hairpin['n1_read_len'])
-
-        m2_good_v = a['m2'] == 0
-        good_reads = sum(m2_good_v)
-        v['m2_aln'] = good_reads / total_reads
-        m0_corr_v = m2_good_v & (a['m0'] == 0)
-        m1_corr_v = m2_good_v & (a['m1'] == 0)
-        n0_corr_v = m2_good_v & (a['n0'] == 0)
-        n1_corr_v = m2_good_v & (a['n1'] == 0)
-        v['m0_corr'] = sum(m0_corr_v) / good_reads
-        v['m1_corr'] = sum(m1_corr_v) / good_reads
-        v['m_corr']  = sum(m0_corr_v & m1_corr_v) / good_reads
-        v['n0_corr'] = sum(n0_corr_v) / good_reads
-        v['n1_corr'] = sum(n1_corr_v) / good_reads
-        v['n_corr']  = sum(n0_corr_v & n1_corr_v) / good_reads
-        v['mn0_corr'] = sum(m0_corr_v & n0_corr_v) / good_reads
-        v['mn1_corr'] = sum(m1_corr_v & n1_corr_v) / good_reads
-        v['mn_corr']  = sum(m0_corr_v & n0_corr_v & m1_corr_v & n1_corr_v) / good_reads
-        #m0_mis =  sum(m0_mis_v) / good_reads
-        #m1_mis =  sum(m1_mis_v) / good_reads
-        #m_mis =   sum(m0_mis_v | m1_mis_v) / good_reads
-        #n0_mis =  sum(n0_mis_v) / good_reads
-        #n1_mis =  sum(n1_mis_v) / good_reads
-        #n_mis =   sum(n0_mis_v | n1_mis_v) / good_reads
-        #mn0_mis = sum(m0_mis_v & n0_mis_v) / good_reads
-        #mn1_mis = sum(m1_mis_v & n1_mis_v) / good_reads
-        #mn_mis =  sum((m0_mis_v | m1_mis_v) & (n0_mis_v | n1_mis_v)) / good_reads
-        print('\t'.join((('{0:' + h[k] + '}').format(v[k]).lstrip('0') for k in h.keys())), file=f)
-    f.close()
-
-def clear_fig(fig_id):
-    if plt.fignum_exists(fig_id):
-        plt.figure(fig_id)
-        plt.clf()
-
-def save_fig(prefix, args):
-    for fmt in args.format:
-        plt.savefig(prefix + '.' + fmt, dpi=args.dpi)
-    plt.close()
-
 def load_data(ds_l):
     datasets = list()
     for ds_n, ds_fn in ds_l:
@@ -329,16 +242,13 @@ if __name__ == "__main__" and "__file__" in globals():
     # read data
     datasets = load_data(args.dataset)
 
-    # write counts
-    write_counts(datasets)
-
     # make hairpin pos plot
     fig_name = 'figure_hairpin'
     make_figure_measures(fig_name, datasets,
                          [('hairpin_pos', 'm',
                            'hairpin_pos', 'n',
                            'Greys')],
-                         sup_title='Hairpin Position')
+                         sup_title='Hairpin Position: Nanocall vs Metrichor')
     save_fig(fig_name, args)
 
     # plot frac align vs identity
@@ -347,7 +257,7 @@ if __name__ == "__main__" and "__file__" in globals():
                            'frac_align', rt,
                            cm_by_rt[rt])
                           for rt in ['n0', 'n1', 'm0', 'm1', 'm2']],
-                         sup_title='Identity vs Frac. Aligned',
+                         sup_title='Fraction Aligned vs Identity',
                          col_title=[rt_name_dict[rt] for rt in ['n0', 'n1', 'm0', 'm1', 'm2']])
     fig_name = 'figure_aln_vs_id'
     save_fig(fig_name, args)
@@ -387,7 +297,7 @@ if __name__ == "__main__" and "__file__" in globals():
                                         cm_by_st[st])
                                       for st in [0, 1]]
                                       for measure_name in ['scale', 'shift']],
-                                     sup_title=datasets[i]['name'],
+                                     sup_title=datasets[i]['name'] + ': Nanocall vs Metrichor',
                                      col_title=[strand_name_dict[st]
                                                 for st in [0, 1]],
                                      row_title=[measure_props[measure_name]['name']
@@ -405,7 +315,7 @@ if __name__ == "__main__" and "__file__" in globals():
                                        for st in [0, 1]]
                                       for measure_name in ['frac_identity', 'read_len', 'frac_align']
                                       for vs2d in [0, 1]],
-                                     sup_title=datasets[i]['name'],
+                                     sup_title=datasets[i]['name'] + ': Nanocall vs Metrichor',
                                      col_title=[strand_name_dict[st]
                                                 for st in [0, 1]],
                                      row_title=[measure_props[measure_name]['name'] + ['', ' vs 2D'][vs2d]
@@ -420,7 +330,7 @@ if __name__ == "__main__" and "__file__" in globals():
                                             cm_by_st[st])
                                            for vs2d in [0, 1]]
                                           for measure_name in ['frac_identity', 'read_len', 'frac_align']],
-                                         sup_title=datasets[i]['name'],
+                                         sup_title=datasets[i]['name'] + ': Nanocall vs Metrichor',
                                          col_title=['vs 1D', 'vs 2D'],
                                          row_title=[measure_props[measure_name]['name']
                                                     for measure_name in ['frac_identity', 'read_len', 'frac_align']])

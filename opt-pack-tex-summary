@@ -9,8 +9,8 @@ import sys
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
-output_keys = ['nanocall_tag', 'm_mis', 'n_mis', 'm_epcb', 'n_epcb', 'total_kbp_per_ch']
-highlight_keys = {'n_mis': 0, 'n_epcb': 0, 'total_kbp_per_ch': 1}
+output_keys = ['nanocall_tag', 'm_corr_frac', 'n_corr_frac', 'm_idn_frac', 'n_idn_frac', 'total_kbp_per_ch']
+highlight_keys = {'n_corr_frac': 1, 'n_idn_frac': 1, 'total_kbp_per_ch': 1}
 
 def process_files(mapping_fn, runtime_fn):
     mapping_a = np.genfromtxt(mapping_fn, dtype=None, names=True)
@@ -24,7 +24,8 @@ def process_files(mapping_fn, runtime_fn):
     rest_fields = list(runtime_a.dtype.names)
     rest_fields.remove('nanocall_tag')
     a = rfn.merge_arrays([mapping_a, runtime_a[rest_fields]], flatten=True, usemask=False)
-    a.sort(order='n_mis')
+    a.sort(order='n_corr_frac')
+    a = a[::-1]
     logger.debug('a: ' + str(a[output_keys]))
     # compute highlights
     best_index = dict()
