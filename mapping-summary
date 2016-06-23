@@ -71,9 +71,9 @@ def process_data(arrays, args):
                              - (a_mn_hairpin['template_end_idx'] + a_mn_hairpin['complement_start_idx'])/2) < 100
         v['common_hairpin_frac'] = sum(good_hairpin_v) / total_reads
 
-        v['m0_avg_events'] = np.mean(a['m0_end_idx'] - a['m0_start_idx'])
+        v['m0_avg_events'] = np.mean(a_m_hairpin['m0_end_idx'] - a_m_hairpin['m0_start_idx'])
         v['m1_avg_events'] = np.mean(a_m_hairpin['m1_end_idx'] - a_m_hairpin['m1_start_idx'])
-        v['n0_avg_events'] = np.mean(a['template_end_idx'] - a['template_start_idx'])
+        v['n0_avg_events'] = np.mean(a_n_hairpin['template_end_idx'] - a_n_hairpin['template_start_idx'])
         v['n1_avg_events'] = np.mean(a_n_hairpin['complement_end_idx'] - a_n_hairpin['complement_start_idx'])
 
         m2_corr_v = a['m2'] == 0
