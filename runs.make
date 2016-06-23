@@ -212,9 +212,9 @@ ${1}.${2}.summary.${3}.mapping.tsv: \
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	paste \
 	  <( \
-	    printf "%s\t%s\t%s\n" "nanocall_tag" "aln" "aln_tag"; \
+	    printf "%s\t%s\t%s\t%s\t%s\t%s\n" "dataset" "subset" "opt_pack" "nanocall_tag" "aln" "aln_tag"; \
 	    for n_opt in $(call get_pack_nanocall_opt_list,${3}); do \
-	      printf "%s\t%s\t%s\n" "$$$$n_opt" "bwa" "ont2d"; \
+	      printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$1" "$2" "$3" "$$$$n_opt" "bwa" "ont2d"; \
 	    done; \
 	  ) \
 	  <(${ROOT_DIR}/mapping-summary $$^) \
