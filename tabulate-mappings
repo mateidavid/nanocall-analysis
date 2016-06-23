@@ -23,7 +23,7 @@ def process_data(d, ref_rt):
     # now check mapping correctness for each read
     hl = ['read_name'] + rt_l + [rt + '_' + v
                                  for rt in rt_l
-                                 for v in ['read_len', 'aln_len', 'errors']]
+                                 for v in ['read_len', 'aln_len', 'errors', 'mism', 'ins', 'del']]
     print('\t'.join(hl))
     for rn, g in itertools.groupby(d, operator.itemgetter('read_name')):
         d2 = {e['read_type'].decode(): e for e in g}
@@ -39,9 +39,14 @@ def process_data(d, ref_rt):
         # errors
         for rt in rt_l:
             if rt in d2:
-                l += [d2[rt]['read_len'], d2[rt]['align_len'], d2[rt]['tot_errors']]
+                l += [d2[rt]['read_len'],
+                      [0, d2[rt]['read_len'] - d2[rt]['unalign_len']][d2[rt]['matches'] > 0],
+                      d2[rt]['tot_errors'],
+                      d2[rt]['mismatches'],
+                      d2[rt]['insertions'],
+                      d2[rt]['deletions']]
             else:
-                l += [0, 0, 0]
+                l += [0, 0, 0, 0, 0, 0]
         print('\t'.join((str(e) for e in l)))
 
 if __name__ == "__main__":
