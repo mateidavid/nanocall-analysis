@@ -36,14 +36,21 @@ def process_data(arrays, args):
             (rt + '_' + t[0], t[1])
             for t in [('avg_read_len_all', '.0f'),
                       ('avg_read_len_m2_aln', '.0f'),
-                      ('avg_read_len_corr', '.0f'),
-                      ('aln_frac', '.3f'),
+                      ('avg_read_len_corr', '.0f')]
+            for rt in ['m0', 'm1', 'm2', 'n0', 'n1']
+        ] +
+        [
+            (rt + '_' + t[0], t[1])
+            for t in [('aln_frac', '.3f'),
                       ('idn_frac', '.3f'),
                       ('mism_frac', '.3f'),
                       ('ins_frac', '.3f'),
                       ('del_frac', '.3f')]
-            for rt in ['m0', 'm1', 'm2', 'n0', 'n1']
-        ])
+            for rt in ['m0', 'm1', 'm2', 'n0', 'n1', 'm', 'n']
+        ]
+
+
+)
     #logger.debug('h: ' + str(h))
     # header
     print('\t'.join(h.keys()))
@@ -80,8 +87,10 @@ def process_data(arrays, args):
             n1_corr_v = m2_corr_v & (a['n1'] == 0)
             v['m0_corr_v'] = m0_corr_v
             v['m1_corr_v'] = m1_corr_v
+            v['m_corr_v'] = m0_corr_v & m1_corr_v
             v['n0_corr_v'] = n0_corr_v
             v['n1_corr_v'] = n1_corr_v
+            v['n_corr_v'] = n0_corr_v & n1_corr_v
             v['m0_corr_frac']   = sum(m0_corr_v) / good_reads
             v['m1_corr_frac']   = sum(m1_corr_v) / good_reads
             v['m_corr_frac']    = sum(m0_corr_v & m1_corr_v) / good_reads
@@ -100,13 +109,35 @@ def process_data(arrays, args):
 
                 a_rt_corr = a[v[rt + '_corr_v']]
                 total_read_len = sum(a_rt_corr[rt + '_read_len'])
-                total_aln_len = sum(a_rt_corr[rt + '_aln_len'])
-                total_errors = sum(a_rt_corr[rt + '_errors'])
-                total_mism = sum(a_rt_corr[rt + '_mism'])
-                total_ins = sum(a_rt_corr[rt + '_ins'])
-                total_del = sum(a_rt_corr[rt + '_del'])
+                total_aln_len  = sum(a_rt_corr[rt + '_aln_len'])
+                total_errors   = sum(a_rt_corr[rt + '_errors'])
+                total_mism     = sum(a_rt_corr[rt + '_mism'])
+                total_ins      = sum(a_rt_corr[rt + '_ins'])
+                total_del      = sum(a_rt_corr[rt + '_del'])
 
                 v[rt + '_avg_read_len_corr'] = np.mean(a_rt_corr[rt + '_read_len'])
+                v[rt + '_aln_frac'] = total_aln_len / total_read_len
+                v[rt + '_idn_frac'] = 1 - total_errors / total_aln_len
+                v[rt + '_mism_frac'] = total_mism / total_aln_len
+                v[rt + '_ins_frac'] = total_ins / total_aln_len
+                v[rt + '_del_frac'] = total_del / total_aln_len
+
+            for rt in ['m', 'n']:
+                a_rt_corr = a[v[rt + '_corr_v']]
+                total_read_len = 0
+                total_aln_len = 0
+                total_errors = 0
+                total_mism = 0
+                total_ins = 0
+                total_del = 0
+                for st in ['0', '1']:
+                    total_read_len += sum(a_rt_corr[rt + st + '_read_len'])
+                    total_aln_len  += sum(a_rt_corr[rt + st + '_aln_len'])
+                    total_errors   += sum(a_rt_corr[rt + st + '_errors'])
+                    total_mism     += sum(a_rt_corr[rt + st + '_mism'])
+                    total_ins      += sum(a_rt_corr[rt + st + '_ins'])
+                    total_del      += sum(a_rt_corr[rt + st + '_del'])
+
                 v[rt + '_aln_frac'] = total_aln_len / total_read_len
                 v[rt + '_idn_frac'] = 1 - total_errors / total_aln_len
                 v[rt + '_mism_frac'] = total_mism / total_aln_len
