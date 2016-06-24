@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+import operator
+import os
+import sys
+
+import numpy as np
+import numpy.lib.recfunctions as rfn
+
+output_keys = [
+    'n_hairpin_frac',
+    'common_hairpin_frac',
+    'avg_events',
+    'm0_avg_events',
+    'm1_avg_events',
+    'n0_avg_events',
+    'n1_avg_events',
+    'm2_avg_read_len_all',
+    'm0_avg_read_len_all',
+    'm1_avg_read_len_all',
+    'n0_avg_read_len_all',
+    'n1_avg_read_len_all',
+]
+
+def process_files(mapping_fn):
+    a = np.genfromtxt(mapping_fn, dtype=None, names=True)
+    r = a[a['nanocall_tag'] == '2ss'.encode()][0]
+    l = list()
+    l += ['']
+    for k in output_keys:
+        if type(r[k]) == np.bytes_:
+            sval = r[k].decode()
+        else:
+            sval = str(r[k])
+        # remove leading 0
+        if sval[:2] == '0.':
+            sval = sval[1:]
+        # escape underscores
+        sval = sval.replace('_', '\\_')
+        # use tt for tag
+        l.append(sval)
+    print('\t&\t'.join(l) + '\t\\\\')
+
+if __name__ == '__main__':
+    description = """
+Make tex summary table for given option pack.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('input', nargs=1, help='Mapping summary.')
+    args = parser.parse_args()
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.debug('args: ' + str(args))
+
+    process_files(args.input[0])

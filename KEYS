@@ -116,6 +116,7 @@ nanocall_option_pack|main_r9            r9-001-fast r9-001-1ss-no_tt r9-001-1ss 
 nanocall_option_pack|threads            2ss-t1 2ss-t2 2ss-t4 2ss-t8
 nanocall_option_pack|train_stop         2ss-maxr_02 2ss-maxr_03 2ss-maxr_04 2ss-maxr_05 2ss-maxr_10 2ss-maxr_15 2ss-maxr_20 2ss-minp_05 2ss-minp_10 2ss-minp_15 2ss-minp_20 2ss-nume_050 2ss-nume_100 2ss-nume_150 2ss-nume_200 2ss-nume_250
 nanocall_option_pack|default_transitions 2ss-pstay_10-pskip_26 2ss-pstay_10-pskip_28 2ss-pstay_10-pskip_30 2ss-pstay_10-pskip_32 2ss-pstay_09-pskip_26 2ss-pstay_09-pskip_28 2ss-pstay_09-pskip_30 2ss-pstay_09-pskip_32 2ss-pstay_11-pskip_26 2ss-pstay_11-pskip_28 2ss-pstay_11-pskip_30 2ss-pstay_11-pskip_32
+nanocall_option_pack|split              2ss
 
 export|detailed_figures_runs            ecoli_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d ecoli_pcr_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d human_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d human_pcr_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d
 export|table|main|dss                   ecoli_1.pass_10000 ecoli_pcr_1.pass_10000 human_1.pass_10000 human_pcr_1.pass_10000
@@ -123,3 +124,4 @@ export|table|main_r9|dss                ecoli_r9_2.pass_2d_1000 human_r9_3.pass_
 export|table|main_aux_rt|dss            ecoli_1.pass_10000.pass_1000 ecoli_pcr_1.pass_10000.pass_1000 human_1.pass_10000.pass_1000 human_pcr_1.pass_10000.pass_1000
 export|table|train_stop|dss             human_pcr_1.pass_10000
 export|table|default_transitions|dss    human_pcr_1.pass_10000
+export|table|split|dss                  ecoli_1.pass_10000 ecoli_pcr_1.pass_10000 human_1.pass_10000 human_pcr_1.pass_10000

@@ -135,3 +135,20 @@ exports/figure_scale.${1}: \
 	}
 endef
 $(foreach fmt,${EXPORT_FORMATS},$(eval $(call make_detailed_figures,${fmt})))
+
+define make_table_split
+# 1: ds
+# 2: ss
+exports/table_split_${1}_${2}.tex: \
+	${1}.${2}.summary.main.mapping.tsv \
+	| exports
+	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
+	{ \
+	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-split $$^ | \
+	  column -t; \
+	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
+endef
+$(foreach dss,${DATASUBSETS},\
+$(foreach ds,$(call get_dss_ds,${dss}),\
+$(foreach ss,$(call get_dss_ss,${dss}),\
+$(eval $(call make_table_split,${ds},${ss})))))
