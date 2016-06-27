@@ -47,18 +47,21 @@ measure_props = {
         'name': 'Scale',
         'limits': (0, 2),
         'ticks': np.arange(0, 2.01, .5),
+        'minor_ticks': 2,
         'lambda': lambda e, rt: e[rt + '_scale']
         },
     'shift': {
         'name': 'Shift',
         'limits': (-10, 30),
         'ticks': np.arange(-10, 30.01, 10),
+        'minor_ticks': 2,
         'lambda': lambda e, rt: e[rt + '_shift']
         },
     'read_len': {
         'name': 'Length',
         'limits': (0, 30000),
-        'ticks': np.arange(0, 30001, 5000),
+        'ticks': np.arange(0, 30001, 10000),
+        'minor_ticks': 2,
         'formatter': matplotlib.ticker.FuncFormatter(thousands),
         'lambda': lambda e, rt: e[rt + '_read_len']
         },
@@ -66,18 +69,21 @@ measure_props = {
         'name': 'Fraction Aligned',
         'limits': (0, 1),
         'ticks': np.arange(0, 1.01, .2),
+        'minor_ticks': 1,
         'lambda': lambda e, rt: e[rt + '_aln_len'] / e[rt + '_read_len']
         },
     'frac_identity': {
         'name': 'Identity',
         'limits': (0, 1),
         'ticks': np.arange(0, 1.01, .2),
-        'lambda': lambda e, rt: 1 - e[rt + '_errors'] / e[rt + '_read_len']
+        'minor_ticks': 1,
+        'lambda': lambda e, rt: 1 - e[rt + '_errors'] / (e[rt + '_read_len'] + e[rt + '_del'])
         },
     'hairpin_pos': {
         'name': 'Hairpin Position',
         'limits': (0, 30000),
-        'ticks': np.arange(0, 30001, 5000),
+        'ticks': np.arange(0, 30001, 10000),
+        'minor_ticks': 2,
         'formatter': matplotlib.ticker.FuncFormatter(thousands),
         'lambda': get_hairpin_pos
     }
@@ -97,6 +103,9 @@ cm_by_rt = {
 # norm
 bnd_nm = matplotlib.colors.BoundaryNorm([0] + [10**i for i in range(5)], 256)
 
+# text font size
+font_size = 14
+
 def clear_fig(fig_id):
     if plt.fignum_exists(fig_id):
         plt.figure(fig_id)
@@ -107,8 +116,8 @@ def save_fig(prefix, args):
         plt.savefig(prefix + '.' + fmt, dpi=args.dpi)
     plt.close()
 
-def make_plot_measures(ax, ds, p):
-    x_measure_name, x_rt, y_measure_name, y_rt, cm = p
+def make_plot_measures(ax, ds, p, **kwargs):
+    x_measure_name, x_rt, y_measure_name, y_rt, mask, cmap = p
     x_lbd = lambda e: measure_props[x_measure_name]['lambda'](e, x_rt)
     y_lbd = lambda e: measure_props[y_measure_name]['lambda'](e, y_rt)
     ax.set_xlim(measure_props[x_measure_name]['limits'], auto=False)
@@ -121,17 +130,17 @@ def make_plot_measures(ax, ds, p):
     if ('formatter' in measure_props[y_measure_name]
         and ax.yaxis.get_major_formatter() != matplotlib.ticker.NullFormatter):
         ax.yaxis.set_major_formatter(measure_props[y_measure_name]['formatter'])
-    ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
-    ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(2))
+    ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(measure_props[x_measure_name]['minor_ticks']))
+    ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator(measure_props[y_measure_name]['minor_ticks']))
     ax.grid(which='both')
-    x = [x_lbd(e) for e in ds['table'][ds['mask']]]
-    y = [y_lbd(e) for e in ds['table'][ds['mask']]]
-    artist = ax.hexbin(x, y, gridsize=50, mincnt=1,
+    x = [x_lbd(e) for e in ds['table'][ds['mask'][mask]]]
+    y = [y_lbd(e) for e in ds['table'][ds['mask'][mask]]]
+    artist = ax.hexbin(x, y, gridsize=50, mincnt=1, linewidths=(0,),
                        extent=measure_props[x_measure_name]['limits'] + measure_props[y_measure_name]['limits'],
-                       cmap=cm, norm=bnd_nm)
+                       norm=bnd_nm, cmap=cmap, **kwargs)
     return artist
 
-def make_figure_measures(fig_id, datasets, plot_list, sup_title=None, col_title=None):
+def make_figure_measures(fig_id, datasets, plot_list, sup_title=None, col_title=None, **kwargs):
     clear_fig(fig_id)
     fig, ax_a = plt.subplots(
         len(datasets) + 1, len(plot_list),
@@ -146,17 +155,18 @@ def make_figure_measures(fig_id, datasets, plot_list, sup_title=None, col_title=
             },
         num=fig_id, figsize=(5 * len(plot_list), 5 * len(datasets)))
     if sup_title:
-        fig.suptitle(sup_title)
+        #fig.suptitle(sup_title, fontsize=font_size)
+        pass
     for i in range(len(datasets)):
         for j in range(len(plot_list)):
             ds = datasets[i]
             p = plot_list[j]
             ax = ax_a[i][j]
-            artist = make_plot_measures(ax, ds, p)
+            artist = make_plot_measures(ax, ds, p, **kwargs)
             if i == 0 and col_title:
-                ax.set_title(col_title[j], fontsize=12)
+                ax.set_title(col_title[j], fontsize=font_size)
             if j == 0:
-                ax.set_ylabel(ds['name'], fontsize=12)
+                ax.set_ylabel(ds['name'], fontsize=font_size)
             if i < len(datasets) - 1:
                 ax.set_xticklabels([], visible=False)
             if j > 0 and all_equal([_p[2] for _p in plot_list]):
@@ -167,7 +177,7 @@ def make_figure_measures(fig_id, datasets, plot_list, sup_title=None, col_title=
     return fig
 
 def make_figure_dataset_measures(fig_id, ds, plot_array,
-                                 sup_title=None, col_title=None, row_title=None):
+                                 sup_title=None, col_title=None, row_title=None, **kwargs):
     clear_fig(fig_id)
     n = len(plot_array)
     m = len(plot_array[0])
@@ -184,16 +194,17 @@ def make_figure_dataset_measures(fig_id, ds, plot_array,
             },
         num=fig_id, figsize=(5 * m, 5 * n))
     if sup_title:
-        fig.suptitle(sup_title)
+        #fig.suptitle(sup_title, fontsize=font_size)
+        pass
     for i in range(n):
         for j in range(m):
             p = plot_array[i][j]
             ax = ax_a[i][j]
-            artist = make_plot_measures(ax, ds, p)
+            artist = make_plot_measures(ax, ds, p, **kwargs)
             if i == 0 and col_title:
-                ax.set_title(col_title[j], fontsize=12)
+                ax.set_title(col_title[j], fontsize=font_size)
             if j == 0 and row_title:
-                ax.set_ylabel(row_title[i], fontsize=12)
+                ax.set_ylabel(row_title[i], fontsize=font_size)
             if i < n - 1 and plot_array[i+1][j][0] == p[0]:
                 ax.set_xticklabels([], visible=False)
             if j > 0 and plot_array[i][j-1][2] == p[2]:
@@ -205,7 +216,21 @@ def make_figure_dataset_measures(fig_id, ds, plot_array,
 
 def load_full_table(fn):
     a = np.genfromtxt(fn, names=True, dtype=None)
-    m = (a['m2'] == 0) & (a['m0'] == 0) & (a['m1'] == 0) & (a['n0'] == 0) & (a['n1'] == 0)
+    m = dict()
+    m['m_hairpin'] = (a['hairpin_pos'] > 0)
+    m['n_hairpin'] = (a['complement_start_idx'] > 0)
+    m['mn_hairpin'] = m['m_hairpin'] & m['n_hairpin']
+    m['same_complement_model'] = a['m1_model_name'] == a['n1_model_name']
+    m['m2_good']  = (a['m2'] == 0)
+    m['m0_good']  = m['m2_good'] & (a['m0'] == 0)
+    m['m1_good']  = m['m2_good'] & (a['m1'] == 0)
+    m['n0_good']  = m['m2_good'] & (a['n0'] == 0)
+    m['n1_good']  = m['m2_good'] & (a['n1'] == 0)
+    m['m_good']   = m['m0_good'] & m['m1_good']
+    m['n_good']   = m['n0_good'] & m['n1_good']
+    m['mn0_good'] = m['m0_good'] & m['n0_good']
+    m['mn1_good'] = m['m1_good'] & m['n1_good']
+    m['mn_good']  = m['m_good']  & m['n_good']
     return a, m
 
 def load_data(ds_l):
@@ -247,6 +272,7 @@ if __name__ == "__main__" and "__file__" in globals():
     make_figure_measures(fig_name, datasets,
                          [('hairpin_pos', 'm',
                            'hairpin_pos', 'n',
+                           'mn_hairpin',
                            'Greys')],
                          sup_title='Hairpin Position: Nanocall vs Metrichor')
     save_fig(fig_name, args)
@@ -255,6 +281,7 @@ if __name__ == "__main__" and "__file__" in globals():
     make_figure_measures(0, datasets,
                          [('frac_identity', rt,
                            'frac_align', rt,
+                           'mn_good',
                            cm_by_rt[rt])
                           for rt in ['n0', 'n1', 'm0', 'm1', 'm2']],
                          sup_title='Fraction Aligned vs Identity',
@@ -269,6 +296,7 @@ if __name__ == "__main__" and "__file__" in globals():
             make_figure_measures(fig_name, datasets,
                                  [(measure_name, ['m' + str(st), 'm2'][vs2d],
                                    measure_name, 'n' + str(st),
+                                   'mn_good',
                                    cm_by_st[st])
                                   for st in [0, 1]],
                                  sup_title=measure_props[measure_name]['name'] + ': Nanocall vs Metrichor' + ['', ' 2D'][vs2d],
@@ -281,6 +309,7 @@ if __name__ == "__main__" and "__file__" in globals():
         make_figure_measures(fig_name, datasets,
                              [(param_name, 'm' + str(st),
                                param_name, 'n' + str(st),
+                               'same_complement_model',
                                cm_by_st[st])
                               for st in [0, 1]],
                              sup_title=measure_props[param_name]['name'] + ': Nanocall vs Metrichor',
@@ -294,6 +323,7 @@ if __name__ == "__main__" and "__file__" in globals():
         make_figure_dataset_measures(fig_name, ds,
                                      [[(measure_name, 'm' + str(st),
                                         measure_name, 'n' + str(st),
+                                        'same_complement_model',
                                         cm_by_st[st])
                                       for st in [0, 1]]
                                       for measure_name in ['scale', 'shift']],
@@ -311,6 +341,7 @@ if __name__ == "__main__" and "__file__" in globals():
         make_figure_dataset_measures(fig_name, ds,
                                      [[(measure_name, 'm' + [str(st), '2'][vs2d],
                                         measure_name, 'n' + str(st),
+                                        'mn_good',
                                         cm_by_st[st])
                                        for st in [0, 1]]
                                       for measure_name in ['frac_identity', 'read_len', 'frac_align']
@@ -327,6 +358,7 @@ if __name__ == "__main__" and "__file__" in globals():
             make_figure_dataset_measures(fig_name, ds,
                                          [[(measure_name, 'm' + [str(st), '2'][vs2d],
                                             measure_name, 'n' + str(st),
+                                            'mn_good',
                                             cm_by_st[st])
                                            for vs2d in [0, 1]]
                                           for measure_name in ['frac_identity', 'read_len', 'frac_align']],
