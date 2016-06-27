@@ -67,7 +67,7 @@ Check if alignment positions of various read types match the alignment of the re
                         format='%(asctime)s %(name)s.%(levelname)s %(message)s',
                         datefmt='%Y/%m/%d %H:%M:%S')
     logger = logging.getLogger(os.path.basename(__file__))
-    logger.info('args=' + str(args))
+    logger.debug('args=' + str(args))
 
     d = bam_summary.load_data(open(args.input) if args.input != '-' else sys.stdin)
     process_data(d, args.ref_type)

@@ -149,7 +149,7 @@ Summarize alignment errors in the given SAM/BAM file.
                         format='%(asctime)s %(name)s.%(levelname)s %(message)s',
                         datefmt='%Y/%m/%d %H:%M:%S')
     logger = logging.getLogger(os.path.basename(__file__))
-    logger.info('args=' + str(args))
+    logger.debug('args=' + str(args))
 
     in_bam = pysam.Samfile(args.input)
     out_txt = open(args.output, 'w') if args.output != '-' else sys.stdout
