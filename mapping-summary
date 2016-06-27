@@ -117,10 +117,10 @@ def process_data(arrays, args):
 
                 v[rt + '_avg_read_len_corr'] = np.mean(a_rt_corr[rt + '_read_len'])
                 v[rt + '_aln_frac'] = total_aln_len / total_read_len
-                v[rt + '_idn_frac'] = 1 - total_errors / total_aln_len
-                v[rt + '_mism_frac'] = total_mism / total_aln_len
-                v[rt + '_ins_frac'] = total_ins / total_aln_len
-                v[rt + '_del_frac'] = total_del / total_aln_len
+                v[rt + '_idn_frac'] = 1 - total_errors / (total_aln_len + total_del)
+                v[rt + '_mism_frac'] = total_mism / (total_aln_len + total_del)
+                v[rt + '_ins_frac'] = total_ins / (total_aln_len + total_del)
+                v[rt + '_del_frac'] = total_del / (total_aln_len + total_del)
 
             for rt in ['m', 'n']:
                 a_rt_corr = a[v[rt + '_corr_v']]
@@ -139,10 +139,10 @@ def process_data(arrays, args):
                     total_del      += sum(a_rt_corr[rt + st + '_del'])
 
                 v[rt + '_aln_frac'] = total_aln_len / total_read_len
-                v[rt + '_idn_frac'] = 1 - total_errors / total_aln_len
-                v[rt + '_mism_frac'] = total_mism / total_aln_len
-                v[rt + '_ins_frac'] = total_ins / total_aln_len
-                v[rt + '_del_frac'] = total_del / total_aln_len
+                v[rt + '_idn_frac'] = 1 - total_errors / (total_aln_len + total_del)
+                v[rt + '_mism_frac'] = total_mism / (total_aln_len + total_del)
+                v[rt + '_ins_frac'] = total_ins / (total_aln_len + total_del)
+                v[rt + '_del_frac'] = total_del / (total_aln_len + total_del)
 
         print('\t'.join((('{0:' + h[k] + '}').format(v[k]).lstrip('0') for k in h.keys())))
 
