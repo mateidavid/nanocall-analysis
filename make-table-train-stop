@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+import operator
+import os
+import sys
+
+import numpy as np
+import numpy.lib.recfunctions as rfn
+
+output_keys = [
+    ('nanocall_tag', 'Param & Val'),
+    ('m_corr_frac', 'MCorr'),
+    ('n_corr_frac', 'NCorr'),
+    ('m_idn_frac', 'MIdn'),
+    ('n_idn_frac', 'NIdn'),
+    ('total_kbp_per_ch', 'Speed'),
+]
+
+highlight_keys = {
+    'n_corr_frac': 1,
+    'n_idn_frac': 1,
+    'total_kbp_per_ch': 1,
+}
+
+def print_header():
+    print('\\begin{tabular}{@{}' + 'l' * (len(output_keys) + 1) + '@{}}')
+    print('\\toprule')
+    print(' & '.join((k for _, k in output_keys)) + ' \\\\')
+
+def print_separator():
+    print('\\midrule')
+
+def print_footer():
+    print('\\botrule')
+    print('\\end{tabular}')
+
+def process_file(mapping_fn, runtime_fn):
+    mapping_a = np.genfromtxt(mapping_fn, dtype=None, names=True)
+    runtime_a = np.genfromtxt(runtime_fn, dtype=None, names=True)
+    assert(mapping_a.size == runtime_a.size)
+    assert('nanocall_tag' in mapping_a.dtype.names)
+    assert('nanocall_tag' in runtime_a.dtype.names)
+    mapping_a.sort(order='nanocall_tag')
+    runtime_a.sort(order='nanocall_tag')
+    assert(list(mapping_a['nanocall_tag']) == list(runtime_a['nanocall_tag']))
+    rest_fields = list(runtime_a.dtype.names)
+    rest_fields.remove('nanocall_tag')
+    a = rfn.merge_arrays([mapping_a, runtime_a[rest_fields]], flatten=True, usemask=False)
+    a.sort(order='n_corr_frac')
+    a = a[::-1]
+    #logger.debug('a: ' + str(a[output_keys]))
+    # compute highlights
+    best_index = dict()
+    for k in highlight_keys.keys():
+        assert(k in a.dtype.names)
+        if highlight_keys[k] == 0:
+            best_index[k], _ = min(enumerate(a[k]), key=operator.itemgetter(1))
+        else:
+            best_index[k], _ = max(enumerate(a[k]), key=operator.itemgetter(1))
+    for i in range(a.size):
+        e = a[i]
+        l = list()
+        for k, _ in output_keys:
+            if i > 0 and k in ['m_corr_frac', 'm_idn_frac']:
+                l.append('.')
+                continue
+            if k == 'nanocall_tag':
+                t = e[k].decode().replace('2ss', '').strip('-').split('_')
+                assert(len(t) == 2)
+                assert(t[0] in ['nume', 'maxr', 'minp'])
+                l.append('\\texttt{' + t[0] + '}')
+                if t[0] == 'nume' or t[0] == 'maxr':
+                    l.append(t[1].lstrip('0'))
+                elif t[0] == 'minp':
+                    l.append((t[1][0] + '.' + t[1][1]).lstrip('0'))
+            else:
+                sval = str(e[k]).lstrip('0')
+                # apply highlight
+                if k not in highlight_keys.keys() or i != best_index[k]:
+                    l.append(sval)
+                else:
+                    l.append('\\textbf{' + sval + '}')
+        print(' & '.join(l) + ' \\\\')
+
+if __name__ == '__main__':
+    description = """
+Make tex summary table for given option pack.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('input', nargs=2, help='Mapping summary file.')
+    args = parser.parse_args()
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.debug('args: ' + str(args))
+
+    print_header()
+    print_separator()
+    process_file(args.input[0], args.input[1])
+    print_footer()

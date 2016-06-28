@@ -1,0 +1,7 @@
+nanocall_option|r9-001-fast|cmd             --pore r9 --ed-group 001 --no-train
+nanocall_option|r9-001-1ss-no_tt|cmd        --pore r9 --ed-group 001 --single-strand-scaling --no-train-transitions
+nanocall_option|r9-001-1ss|cmd              --pore r9 --ed-group 001 --single-strand-scaling
+nanocall_option|r9-001-2ss-no_tt|cmd        --pore r9 --ed-group 001 --double-strand-scaling --no-train-transitions
+nanocall_option|r9-001-2ss|cmd              --pore r9 --ed-group 001 --double-strand-scaling
+nanocall_option_pack|main_r9            r9-001-fast r9-001-1ss-no_tt r9-001-1ss r9-001-2ss-no_tt r9-001-2ss
+export|table|main_r9|dss                ecoli_r9_2.pass_2d_1000 human_r9_3.pass_2d_1000

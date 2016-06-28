@@ -24,7 +24,7 @@ include ${ROOT_DIR}/data.make
 include ${ROOT_DIR}/runs.make
 include ${ROOT_DIR}/exports.make
 
-all: ${TOOLS_TARGETS} ${DATA_TARGETS} ${EXPORT_TARGETS}
+all: ${TOOLS_TARGETS} ${EXPORT_TARGETS}
 
 list: print-TOOLS_TARGETS print-DATA_TARGETS print-DATASETS print-DATASUBSETS print-EXPORT_TARGETS
 
