@@ -28,9 +28,9 @@ highlight_keys = {
 
 dataset_name = {
     'ecoli_1': '\\ecoli/',
-    'ecoli_pcr_1': '\\ecoli/ PCR',
+    'ecoli_pcr_1': '\\ecoli/~PCR',
     'human_1': 'Human',
-    'human_pcr_1': 'Human PCR',
+    'human_pcr_1': 'Human~PCR',
 }
 
 opts_name = {

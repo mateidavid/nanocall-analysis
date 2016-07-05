@@ -71,7 +71,7 @@ def process_file(mapping_fn):
                         token_dict[t2[0]] = t2[1]
                 assert('pstay' in token_dict)
                 assert('pskip' in token_dict)
-                l.append('.0' + token_dict['pstay'])
+                l.append('.' + token_dict['pstay'])
                 l.append('.' + token_dict['pskip'])
             else:
                 sval = str(e[k]).lstrip('0')
