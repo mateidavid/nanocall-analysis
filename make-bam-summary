@@ -114,6 +114,7 @@ def process_file(in_bam, out_txt):
         else:
             align_chr = '*'
             align_pos = 0
+            read_len = aln.infer_query_length(always=False)
             align_len = 0
             unalign_len = 0
             cigar_prof = {EQUAL: 0, DIFF: 0, INS: 0, DEL: 0}
