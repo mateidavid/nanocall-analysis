@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+import operator
+import os
+import sys
+
+import numpy as np
+import numpy.lib.recfunctions as rfn
+
+output_keys = [
+    ('dataset', 'Dataset'),
+    ('total_reads', 'Reads'),
+    ('avg_events', 'Events'),
+    ('n_hairpin_frac', 'N'),
+    ('common_hairpin_frac', 'MN'),
+    ('m2_avg_read_len_all', 'M2'),
+    ('m0_avg_read_len_all', 'M0'),
+    ('m1_avg_read_len_all', 'M1'),
+    ('n0_avg_read_len_all', 'N0'),
+    ('n1_avg_read_len_all', 'N1'),
+    ('m2_idn_frac', 'M2'),
+    ('m_idn_frac', 'M'),
+    ('n_idn_frac', 'N'),
+    ('m0_ins_frac', 'M0'),
+    ('m1_ins_frac', 'M1'),
+    ('n0_ins_frac', 'N0'),
+    ('n1_ins_frac', 'N1'),
+    ('m0_del_frac', 'M0'),
+    ('m1_del_frac', 'M1'),
+    ('n0_del_frac', 'N0'),
+    ('n1_del_frac', 'N1'),
+]
+
+preheader = [
+    (3, 3, 'Average'),
+    (4, 5, 'Hairpin'),
+    (6, 10, 'Average Length'),
+    (11, 13, 'Identity'),
+    (14, 17, 'Insertions'),
+    (18, 21, 'Deletions'),
+]
+
+dataset_name = {
+    'ecoli_1': '\\ecoli/',
+    'ecoli_pcr_1': '\\ecoli/ PCR',
+    'human_1': 'Human',
+    'human_pcr_1': 'Human PCR',
+}
+
+def print_header():
+    print('\\begin{tabular}{@{}' + 'l' * len(output_keys) + '@{}}')
+    print('\\toprule')
+    if preheader:
+        crt_idx = 1
+        for t in preheader:
+            assert(crt_idx <= t[0])
+            print(' & ' * (t[0] - crt_idx))
+            if t[1] > t[0]:
+                print('\\multicolumn{' + str(t[1] - t[0] + 1) + '}{l}{' + t[2] + '}')
+            else:
+                print(t[2])
+            crt_idx = t[1]
+        print('\\\\')
+    print(' & '.join((k for _, k in output_keys)) + ' \\\\')
+
+def print_separator():
+    print('\\midrule')
+
+def print_footer():
+    print('\\botrule')
+    print('\\end{tabular}')
+
+def process_file(mapping_fn, args):
+    a = np.genfromtxt(mapping_fn, dtype=None, names=True)
+    r = a[a['nanocall_tag'] == args.run.encode()][0]
+    l = list()
+    for k, _ in output_keys:
+        assert(k in a.dtype.names)
+        if k == 'dataset':
+            l.append(dataset_name[r[k].decode()])
+        else:
+            l.append(str(r[k]).lstrip('0'))
+    print(' & '.join(l) + ' \\\\')
+
+if __name__ == '__main__':
+    description = """
+Make tex table for specific run.
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    parser.add_argument('--run', default='2ss', help='Specific run to summarize.')
+    parser.add_argument('input', nargs='*', help='Mapping summary.')
+    args = parser.parse_args()
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.debug('args: ' + str(args))
+
+    print_header()
+    print_separator()
+    for p in args.input:
+        process_file(p, args)
+    print_footer()

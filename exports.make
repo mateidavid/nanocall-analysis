@@ -55,13 +55,11 @@ exports/table_main.tex: \
 	$(foreach dss,$(call keymap_val,export|table|main|dss),\
 	${dss}.summary.main.mapping.tsv ${dss}.summary.main.runtime.tsv) \
 	| exports
-	SGE_RREQ="-N $@ -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-main \
-	    $(foreach dss,$(call keymap_val,export|table|main|dss),\
-	    --input ${dss}.summary.main.{mapping,runtime}.tsv) | \
-	  column -t; \
-	} >$@ 2>>.$(patsubst exports/%,%,$@).log
+	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" \
+	ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-main \
+	  $(foreach dss,$(call keymap_val,export|table|main|dss),\
+	  --input ${dss}.summary.main.{mapping,runtime}.tsv) \
+	  >$@ 2>>.$(patsubst exports/%,%,$@).log
 
 exports/table_main_aux_rt.tex: \
 	$(foreach arg,$(call keymap_val,export|table|main_aux_rt|dss),\
@@ -70,130 +68,42 @@ exports/table_main_aux_rt.tex: \
 	$(foreach ss2,$(word 3,$(subst ., ,${arg})),\
 	${ds}.${ss1}.summary.main.mapping.tsv ${ds}.${ss2}.summary.main.runtime.tsv)))) \
 	| exports
-	SGE_RREQ="-N $@ -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-main \
-	    $(foreach arg,$(call keymap_val,export|table|main_aux_rt|dss),\
-	    $(foreach ds,$(word 1,$(subst ., ,${arg})),\
-	    $(foreach ss1,$(word 2,$(subst ., ,${arg})),\
-	    $(foreach ss2,$(word 3,$(subst ., ,${arg})),\
-	    --input ${ds}.${ss1}.summary.main.mapping.tsv ${ds}.${ss2}.summary.main.runtime.tsv)))) | \
-	  column -t; \
-	} >$@ 2>>.$(patsubst exports/%,%,$@).log
+	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" \
+	ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-main \
+	  $(foreach arg,$(call keymap_val,export|table|main_aux_rt|dss),\
+	  $(foreach ds,$(word 1,$(subst ., ,${arg})),\
+	  $(foreach ss1,$(word 2,$(subst ., ,${arg})),\
+	  $(foreach ss2,$(word 3,$(subst ., ,${arg})),\
+	  --input ${ds}.${ss1}.summary.main.mapping.tsv ${ds}.${ss2}.summary.main.runtime.tsv)))) \
+	  >$@ 2>>.$(patsubst exports/%,%,$@).log
 
 exports/table_default_transitions.tex: \
 	$(foreach dss,$(call keymap_val,export|table|default_transitions|dss),\
 	${dss}.summary.default_transitions.mapping.tsv) \
 	| exports
-	SGE_RREQ="-N $@ -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-default-transitions \
-	    $(foreach dss,$(call keymap_val,export|table|default_transitions|dss),\
-	    ${dss}.summary.default_transitions.mapping.tsv) | \
-	  column -t; \
-	} >$@ 2>>.$(patsubst exports/%,%,$@).log
+	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" \
+	ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-default-transitions \
+	  $(foreach dss,$(call keymap_val,export|table|default_transitions|dss),\
+	  ${dss}.summary.default_transitions.mapping.tsv) \
+	  >$@ 2>>.$(patsubst exports/%,%,$@).log
 
 exports/table_train_stop.tex: \
 	$(foreach dss,$(call keymap_val,export|table|train_stop|dss),\
 	${dss}.summary.train_stop.mapping.tsv ${dss}.summary.train_stop.runtime.tsv) \
 	| exports
-	SGE_RREQ="-N $@ -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-train-stop \
-	    $(foreach dss,$(call keymap_val,export|table|train_stop|dss),\
-	    ${dss}.summary.train_stop.{mapping,runtime}.tsv) | \
-	  column -t; \
-	} >$@ 2>>.$(patsubst exports/%,%,$@).log
+	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" \
+	ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-train-stop \
+	  $(foreach dss,$(call keymap_val,export|table|train_stop|dss),\
+	  ${dss}.summary.train_stop.{mapping,runtime}.tsv) \
+	  >$@ 2>>.$(patsubst exports/%,%,$@).log
 
-define make_table_main_r9
-# 1: ds
-# 2: ss
-exports/table_main_r9_${1}_${2}.tex: \
-	${1}.${2}.summary.main_r9.mapping.tsv \
-	${1}.${2}.summary.main_r9.runtime.tsv \
+exports/table_summary.tex: \
+	$(foreach dss,$(call keymap_val,export|table|summary|dss),\
+	${dss}.summary.main.mapping.tsv) \
 	| exports
-	SGE_RREQ="-N $(subst /,_,$$@) -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
-	  column -t; \
-	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(foreach ds,$(call get_dss_ds,${dss}),\
-$(foreach ss,$(call get_dss_ss,${dss}),\
-$(eval $(call make_table_main_r9,${ds},${ss})))))
-
-define make_table_main_aux_rt
-# 1: ds
-# 2: ss1
-# 3: ss2
-exports/table_main_aux_rt_${1}_${2}_${3}.tex: \
-	${1}.${2}.summary.main.mapping.tsv \
-	${1}.${3}.summary.main.runtime.tsv \
-	| exports
-	SGE_RREQ="-N $(subst /,_,$$@) -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
-	  column -t; \
-	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
-endef
-$(foreach tb_arg,$(call keymap_val,export|table|main_aux_rt|dss),\
-$(eval $(call make_table_main_aux_rt,$(word 1,$(subst ., ,${tb_arg})),$(word 2,$(subst ., ,${tb_arg})),$(word 3,$(subst ., ,${tb_arg})))))
-
-define make_table_train_stop
-# 1: ds
-# 2: ss
-exports/table_train_stop_${1}_${2}.tex: \
-	${1}.${2}.summary.train_stop.mapping.tsv \
-	${1}.${2}.summary.train_stop.runtime.tsv \
-	| exports
-	SGE_RREQ="-N $(subst /,_,$$@) -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
-	  cut -f 3- | \
-	  column -t; \
-	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(foreach ds,$(call get_dss_ds,${dss}),\
-$(foreach ss,$(call get_dss_ss,${dss}),\
-$(eval $(call make_table_train_stop,${ds},${ss})))))
-
-define make_table_default_transitions
-# 1: ds
-# 2: ss
-exports/table_default_transitions_${1}_${2}.tex: \
-	${1}.${2}.summary.default_transitions.mapping.tsv \
-	${1}.${2}.summary.default_transitions.runtime.tsv \
-	| exports
-	SGE_RREQ="-N $(subst /,_,$$@) -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/opt-pack-tex-summary $$^ | \
-	  cut -f 3-11,14 | \
-	  column -t; \
-	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(foreach ds,$(call get_dss_ds,${dss}),\
-$(foreach ss,$(call get_dss_ss,${dss}),\
-$(eval $(call make_table_default_transitions,${ds},${ss})))))
-
-define make_table_split
-# 1: ds
-# 2: ss
-exports/table_split_${1}_${2}.tex: \
-	${1}.${2}.summary.main.mapping.tsv \
-	| exports
-	SGE_RREQ="-N $(subst /,_,$$@) -l h_tvmem=10G" :; \
-	{ \
-	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-split $$^ | \
-	  column -t; \
-	} >$$@ 2>.$$(patsubst exports/%,%,$$@).log
-endef
-$(foreach dss,${DATASUBSETS},\
-$(foreach ds,$(call get_dss_ds,${dss}),\
-$(foreach ss,$(call get_dss_ss,${dss}),\
-$(eval $(call make_table_split,${ds},${ss})))))
+	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" \
+	ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-summary $^ \
+	  >$@ 2>>.$(patsubst exports/%,%,$@).log
 
 define make_detailed_figures
 # 1: output format

@@ -97,7 +97,7 @@ def process_files(mapping_fn, runtime_fn):
                     l.append(sval)
                 else:
                     l.append('\\textbf{' + sval + '}')
-        print('\t&\t'.join(l) + '\t\\\\')
+        print(' & '.join(l) + ' \\\\')
 
 if __name__ == '__main__':
     description = """
