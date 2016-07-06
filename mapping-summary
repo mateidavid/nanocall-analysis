@@ -48,9 +48,7 @@ def process_data(arrays, args):
                       ('del_frac', '.3f')]
             for rt in ['m0', 'm1', 'm2', 'n0', 'n1', 'm', 'n']
         ]
-
-
-)
+    )
     #logger.debug('h: ' + str(h))
     # header
     print('\t'.join(h.keys()))
