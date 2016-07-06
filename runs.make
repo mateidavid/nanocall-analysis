@@ -37,8 +37,8 @@ ${1}: ${2} | bwa.version ${3}--bwa-index
 	{ \
 	  zcat -f ${2} | \
 	  ${BWA} mem -t ${5} ${4} ${3}.fa - | \
-	  ${PYTHON3} ${ROOT_DIR}/bam-filter-best-alignment -o $$@; \
-	} 2>.$$@.log
+	  ${SAMTOOLS} view -F 0x900 -b -; \
+	} >$$@ 2>.$$@.log
 ${1}_summary.tsv: ${1}
 	SGE_RREQ="-N $$@ -l h_tvmem=10G" :; \
 	{ \
