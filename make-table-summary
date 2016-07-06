@@ -34,9 +34,9 @@ output_keys = [
 ]
 
 preheader = [
-    (3, 3, 'Average'),
+    (3, 3, 'Avg'),
     (4, 5, 'Hairpin'),
-    (6, 10, 'Average Length'),
+    (6, 10, 'Avg Length'),
     (11, 13, 'Identity'),
     (14, 17, 'Insertions'),
     (18, 21, 'Deletions'),
