@@ -22,13 +22,13 @@ HUMAN_REFERENCE = ${DATA_DIR}/human.fa
 ECOLI_REFERENCE = ${DATA_DIR}/ecoli.fa
 
 GZIP := $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; fi)
-THREADS = 14
-NANOCALL_SGE_OPTS = -q marathon
+THREADS = 6
+NANOCALL_SGE_OPTS = -q !default&!upgradetest
 #NANOCALL_SGE_OPTS = -q marathon -l h_rt=48:0:0 -l s_rt=48:0:0
 
 # when set to 1, nanocall inputs are copied to temp dir before each run,
 # and outputs (fa&stats) are written to temp, then copied over
-CACHE_FILES = 1
+CACHE_FILES = 0
 
 #
 # Keymap store
