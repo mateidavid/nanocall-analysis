@@ -68,14 +68,16 @@ exports/table_main_aux_rt.tex: \
 	$(foreach ss2,$(word 3,$(subst ., ,${arg})),\
 	${ds}.${ss1}.summary.main.mapping.tsv ${ds}.${ss2}.summary.main.runtime.tsv)))) \
 	| exports
-	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" \
-	ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-main \
-	  $(foreach arg,$(call keymap_val,export|table|main_aux_rt|dss),\
-	  $(foreach ds,$(word 1,$(subst ., ,${arg})),\
-	  $(foreach ss1,$(word 2,$(subst ., ,${arg})),\
-	  $(foreach ss2,$(word 3,$(subst ., ,${arg})),\
-	  --input ${ds}.${ss1}.summary.main.mapping.tsv ${ds}.${ss2}.summary.main.runtime.tsv)))) \
-	  >$@ 2>>.$(patsubst exports/%,%,$@).log
+	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" :; \
+	{ \
+	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-main \
+	    $(foreach arg,$(call keymap_val,export|table|main_aux_rt|dss),\
+	    $(foreach ds,$(word 1,$(subst ., ,${arg})),\
+	    $(foreach ss1,$(word 2,$(subst ., ,${arg})),\
+	    $(foreach ss2,$(word 3,$(subst ., ,${arg})),\
+	    --input ${ds}.${ss1}.summary.main.mapping.tsv ${ds}.${ss2}.summary.main.runtime.tsv)))) | \
+	  sed 's/Speed/Speed$$^*$$/'; \
+	} >$@ 2>>.$(patsubst exports/%,%,$@).log
 
 exports/table_default_transitions.tex: \
 	$(foreach dss,$(call keymap_val,export|table|default_transitions|dss),\
