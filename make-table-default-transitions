@@ -10,7 +10,7 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 output_keys = [
-    ('nanocall_tag', 'PStay & PSkip & TT'),
+    ('nanocall_tag', 'PStay & PSkip'),
     ('m_corr_frac', 'MCorr'),
     ('n_corr_frac', 'NCorr'),
     ('m_idn_frac', 'MIdn'),
@@ -31,7 +31,7 @@ opts_name = {
 }
 
 def print_header():
-    print('\\begin{tabular}{@{}' + 'l' * (len(output_keys) + 2) + '@{}}')
+    print('\\begin{tabular}{@{}' + 'l' * (len(output_keys) + 1) + '@{}}')
     print('\\toprule')
     print(' & '.join((k for _, k in output_keys)) + ' \\\\')
 
@@ -41,6 +41,20 @@ def print_separator():
 def print_footer():
     print('\\botrule')
     print('\\end{tabular}')
+
+def get_opts(tag):
+    _tok_l = tag.split('-')
+    _res = dict()
+    for _t in _tok_l:
+        if _t == 'no_tt':
+            _res['tt'] = False
+        elif _t.startswith('pstay'):
+            _res['pstay'] = float('.' + _t.split('_')[1])
+        elif _t.startswith('pskip'):
+            _res['pskip'] = float('.' + _t.split('_')[1])
+    if 'tt' not in _res:
+        _res['tt'] = True
+    return _res
 
 def process_file(mapping_fn):
     a = np.genfromtxt(mapping_fn, dtype=None, names=True)
@@ -63,17 +77,13 @@ def process_file(mapping_fn):
                 l.append('.')
                 continue
             if k == 'nanocall_tag':
-                token_list = e[k].decode().split('-')
-                token_dict = dict()
-                for t in token_list:
-                    if '_' in t:
-                        t2 = t.split('_')
-                        token_dict[t2[0]] = t2[1]
-                assert('pstay' in token_dict)
-                assert('pskip' in token_dict)
-                l.append('.' + token_dict['pstay'])
-                l.append('.' + token_dict['pskip'])
-                l.append(['n', 'y']['no' in token_dict and token_dict['no'] == 'tt'])
+                td = get_opts(e[k].decode())
+                assert('tt' in td)
+                assert('pstay' in td)
+                assert('pskip' in td)
+                l.append('{:.2f}'.format(td['pstay']).lstrip('0'))
+                l.append('{:.2f}'.format(td['pskip']).lstrip('0'))
+                #l.append(['n', 'y'][td['tt']])
             else:
                 sval = str(e[k]).lstrip('0')
                 # apply highlight
