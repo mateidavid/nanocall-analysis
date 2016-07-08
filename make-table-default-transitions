@@ -10,7 +10,7 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 output_keys = [
-    ('nanocall_tag', 'PStay & PSkip'),
+    ('nanocall_tag', 'PStay & PSkip & TT'),
     ('m_corr_frac', 'MCorr'),
     ('n_corr_frac', 'NCorr'),
     ('m_idn_frac', 'MIdn'),
@@ -31,7 +31,7 @@ opts_name = {
 }
 
 def print_header():
-    print('\\begin{tabular}{@{}' + 'l' * (len(output_keys) + 1) + '@{}}')
+    print('\\begin{tabular}{@{}' + 'l' * (len(output_keys) + 2) + '@{}}')
     print('\\toprule')
     print(' & '.join((k for _, k in output_keys)) + ' \\\\')
 
@@ -73,6 +73,7 @@ def process_file(mapping_fn):
                 assert('pskip' in token_dict)
                 l.append('.' + token_dict['pstay'])
                 l.append('.' + token_dict['pskip'])
+                l.append(['n', 'y']['no' in token_dict and token_dict['no'] == 'tt'])
             else:
                 sval = str(e[k]).lstrip('0')
                 # apply highlight

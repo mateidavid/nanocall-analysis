@@ -93,31 +93,108 @@ nanocall_option|2ss-nume_150|cmd            --pore r73 --double-strand-scaling -
 nanocall_option|2ss-nume_200|cmd            --pore r73 --double-strand-scaling --scaling-num-events 200
 nanocall_option|2ss-nume_250|cmd            --pore r73 --double-strand-scaling --scaling-num-events 250
 # default_transitions options
+nanocall_option|2ss-pstay_09-pskip_22|cmd   --pore r73 --double-strand-scaling --pr-stay 0.09 --pr-skip 0.22
 nanocall_option|2ss-pstay_09-pskip_24|cmd   --pore r73 --double-strand-scaling --pr-stay 0.09 --pr-skip 0.24
 nanocall_option|2ss-pstay_09-pskip_26|cmd   --pore r73 --double-strand-scaling --pr-stay 0.09 --pr-skip 0.26
 nanocall_option|2ss-pstay_09-pskip_28|cmd   --pore r73 --double-strand-scaling --pr-stay 0.09 --pr-skip 0.28
 nanocall_option|2ss-pstay_09-pskip_30|cmd   --pore r73 --double-strand-scaling --pr-stay 0.09 --pr-skip 0.30
 nanocall_option|2ss-pstay_09-pskip_32|cmd   --pore r73 --double-strand-scaling --pr-stay 0.09 --pr-skip 0.32
+nanocall_option|2ss-pstay_10-pskip_22|cmd   --pore r73 --double-strand-scaling --pr-stay 0.10 --pr-skip 0.22
 nanocall_option|2ss-pstay_10-pskip_24|cmd   --pore r73 --double-strand-scaling --pr-stay 0.10 --pr-skip 0.24
 nanocall_option|2ss-pstay_10-pskip_26|cmd   --pore r73 --double-strand-scaling --pr-stay 0.10 --pr-skip 0.26
 nanocall_option|2ss-pstay_10-pskip_28|cmd   --pore r73 --double-strand-scaling --pr-stay 0.10 --pr-skip 0.28
 nanocall_option|2ss-pstay_10-pskip_30|cmd   --pore r73 --double-strand-scaling --pr-stay 0.10 --pr-skip 0.30
 nanocall_option|2ss-pstay_10-pskip_32|cmd   --pore r73 --double-strand-scaling --pr-stay 0.10 --pr-skip 0.32
+nanocall_option|2ss-pstay_11-pskip_22|cmd   --pore r73 --double-strand-scaling --pr-stay 0.11 --pr-skip 0.22
 nanocall_option|2ss-pstay_11-pskip_24|cmd   --pore r73 --double-strand-scaling --pr-stay 0.11 --pr-skip 0.24
 nanocall_option|2ss-pstay_11-pskip_26|cmd   --pore r73 --double-strand-scaling --pr-stay 0.11 --pr-skip 0.26
 nanocall_option|2ss-pstay_11-pskip_28|cmd   --pore r73 --double-strand-scaling --pr-stay 0.11 --pr-skip 0.28
 nanocall_option|2ss-pstay_11-pskip_30|cmd   --pore r73 --double-strand-scaling --pr-stay 0.11 --pr-skip 0.30
 nanocall_option|2ss-pstay_11-pskip_32|cmd   --pore r73 --double-strand-scaling --pr-stay 0.11 --pr-skip 0.32
+nanocall_option|2ss-pstay_12-pskip_22|cmd   --pore r73 --double-strand-scaling --pr-stay 0.12 --pr-skip 0.22
 nanocall_option|2ss-pstay_12-pskip_24|cmd   --pore r73 --double-strand-scaling --pr-stay 0.12 --pr-skip 0.24
 nanocall_option|2ss-pstay_12-pskip_26|cmd   --pore r73 --double-strand-scaling --pr-stay 0.12 --pr-skip 0.26
 nanocall_option|2ss-pstay_12-pskip_28|cmd   --pore r73 --double-strand-scaling --pr-stay 0.12 --pr-skip 0.28
 nanocall_option|2ss-pstay_12-pskip_30|cmd   --pore r73 --double-strand-scaling --pr-stay 0.12 --pr-skip 0.30
 nanocall_option|2ss-pstay_12-pskip_32|cmd   --pore r73 --double-strand-scaling --pr-stay 0.12 --pr-skip 0.32
 
+nanocall_option|2ss-no_tt-pstay_09-pskip_22|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.09 --pr-skip 0.22
+nanocall_option|2ss-no_tt-pstay_09-pskip_24|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.09 --pr-skip 0.24
+nanocall_option|2ss-no_tt-pstay_09-pskip_26|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.09 --pr-skip 0.26
+nanocall_option|2ss-no_tt-pstay_09-pskip_28|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.09 --pr-skip 0.28
+nanocall_option|2ss-no_tt-pstay_09-pskip_30|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.09 --pr-skip 0.30
+nanocall_option|2ss-no_tt-pstay_09-pskip_32|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.09 --pr-skip 0.32
+nanocall_option|2ss-no_tt-pstay_10-pskip_22|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.10 --pr-skip 0.22
+nanocall_option|2ss-no_tt-pstay_10-pskip_24|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.10 --pr-skip 0.24
+nanocall_option|2ss-no_tt-pstay_10-pskip_26|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.10 --pr-skip 0.26
+nanocall_option|2ss-no_tt-pstay_10-pskip_28|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.10 --pr-skip 0.28
+nanocall_option|2ss-no_tt-pstay_10-pskip_30|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.10 --pr-skip 0.30
+nanocall_option|2ss-no_tt-pstay_10-pskip_32|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.10 --pr-skip 0.32
+nanocall_option|2ss-no_tt-pstay_11-pskip_22|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.11 --pr-skip 0.22
+nanocall_option|2ss-no_tt-pstay_11-pskip_24|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.11 --pr-skip 0.24
+nanocall_option|2ss-no_tt-pstay_11-pskip_26|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.11 --pr-skip 0.26
+nanocall_option|2ss-no_tt-pstay_11-pskip_28|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.11 --pr-skip 0.28
+nanocall_option|2ss-no_tt-pstay_11-pskip_30|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.11 --pr-skip 0.30
+nanocall_option|2ss-no_tt-pstay_11-pskip_32|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.11 --pr-skip 0.32
+nanocall_option|2ss-no_tt-pstay_12-pskip_22|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.12 --pr-skip 0.22
+nanocall_option|2ss-no_tt-pstay_12-pskip_24|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.12 --pr-skip 0.24
+nanocall_option|2ss-no_tt-pstay_12-pskip_26|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.12 --pr-skip 0.26
+nanocall_option|2ss-no_tt-pstay_12-pskip_28|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.12 --pr-skip 0.28
+nanocall_option|2ss-no_tt-pstay_12-pskip_30|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.12 --pr-skip 0.30
+nanocall_option|2ss-no_tt-pstay_12-pskip_32|cmd   --pore r73 --double-strand-scaling --no-train-transitions --pr-stay 0.12 --pr-skip 0.32
+
 nanocall_option_pack|main               fast 1ss-no_tt 1ss 2ss-no_tt 2ss
 nanocall_option_pack|threads            2ss-t1 2ss-t2 2ss-t4 2ss-t8
 nanocall_option_pack|train_stop         2ss-maxr_02 2ss-maxr_03 2ss-maxr_04 2ss-maxr_05 2ss-maxr_10 2ss-maxr_15 2ss-maxr_20 2ss-minp_05 2ss-minp_10 2ss-minp_15 2ss-minp_20 2ss-nume_050 2ss-nume_100 2ss-nume_150 2ss-nume_200 2ss-nume_250
-nanocall_option_pack|default_transitions 2ss-pstay_10-pskip_26 2ss-pstay_10-pskip_28 2ss-pstay_10-pskip_30 2ss-pstay_10-pskip_32 2ss-pstay_09-pskip_26 2ss-pstay_09-pskip_28 2ss-pstay_09-pskip_30 2ss-pstay_09-pskip_32 2ss-pstay_11-pskip_26 2ss-pstay_11-pskip_28 2ss-pstay_11-pskip_30 2ss-pstay_11-pskip_32 2ss-pstay_09-pskip_24 2ss-pstay_10-pskip_24 2ss-pstay_11-pskip_24 2ss-pstay_12-pskip_24 2ss-pstay_12-pskip_26 2ss-pstay_12-pskip_28 2ss-pstay_12-pskip_30
+nanocall_option_pack|default_transitions \
+  2ss-pstay_09-pskip_22 \
+  2ss-pstay_09-pskip_24 \
+  2ss-pstay_09-pskip_26 \
+  2ss-pstay_09-pskip_28 \
+  2ss-pstay_09-pskip_30 \
+  2ss-pstay_09-pskip_32 \
+  2ss-pstay_10-pskip_22 \
+  2ss-pstay_10-pskip_24 \
+  2ss-pstay_10-pskip_26 \
+  2ss-pstay_10-pskip_28 \
+  2ss-pstay_10-pskip_30 \
+  2ss-pstay_10-pskip_32 \
+  2ss-pstay_11-pskip_22 \
+  2ss-pstay_11-pskip_24 \
+  2ss-pstay_11-pskip_26 \
+  2ss-pstay_11-pskip_28 \
+  2ss-pstay_11-pskip_30 \
+  2ss-pstay_11-pskip_32 \
+  2ss-pstay_12-pskip_22 \
+  2ss-pstay_12-pskip_24 \
+  2ss-pstay_12-pskip_26 \
+  2ss-pstay_12-pskip_28 \
+  2ss-pstay_12-pskip_30 \
+  2ss-pstay_12-pskip_32 \
+  2ss-no_tt-pstay_09-pskip_22 \
+  2ss-no_tt-pstay_09-pskip_24 \
+  2ss-no_tt-pstay_09-pskip_26 \
+  2ss-no_tt-pstay_09-pskip_28 \
+  2ss-no_tt-pstay_09-pskip_30 \
+  2ss-no_tt-pstay_09-pskip_32 \
+  2ss-no_tt-pstay_10-pskip_22 \
+  2ss-no_tt-pstay_10-pskip_24 \
+  2ss-no_tt-pstay_10-pskip_26 \
+  2ss-no_tt-pstay_10-pskip_28 \
+  2ss-no_tt-pstay_10-pskip_30 \
+  2ss-no_tt-pstay_10-pskip_32 \
+  2ss-no_tt-pstay_11-pskip_22 \
+  2ss-no_tt-pstay_11-pskip_24 \
+  2ss-no_tt-pstay_11-pskip_26 \
+  2ss-no_tt-pstay_11-pskip_28 \
+  2ss-no_tt-pstay_11-pskip_30 \
+  2ss-no_tt-pstay_11-pskip_32 \
+  2ss-no_tt-pstay_12-pskip_22 \
+  2ss-no_tt-pstay_12-pskip_24 \
+  2ss-no_tt-pstay_12-pskip_26 \
+  2ss-no_tt-pstay_12-pskip_28 \
+  2ss-no_tt-pstay_12-pskip_30 \
+  2ss-no_tt-pstay_12-pskip_32
 nanocall_option_pack|summary              2ss
 
 export|detailed_figures_runs            ecoli_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d ecoli_pcr_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d human_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d human_pcr_1.pass_10000.metrichor+nanocall~2ss.bwa~ont2d

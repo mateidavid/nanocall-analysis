@@ -81,11 +81,13 @@ exports/table_default_transitions.tex: \
 	$(foreach dss,$(call keymap_val,export|table|default_transitions|dss),\
 	${dss}.summary.default_transitions.mapping.tsv) \
 	| exports
-	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" \
-	ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-default-transitions \
-	  $(foreach dss,$(call keymap_val,export|table|default_transitions|dss),\
-	  ${dss}.summary.default_transitions.mapping.tsv) \
-	  >$@ 2>>.$(patsubst exports/%,%,$@).log
+	SGE_RREQ="-N $(subst /,_,$@) -l h_tvmem=10G" :; \
+	{ \
+	  ROOT_DIR="${ROOT_DIR}" PYTHON3=${PYTHON3} ${ROOT_DIR}/make-table-default-transitions \
+	    $(foreach dss,$(call keymap_val,export|table|default_transitions|dss),\
+	    ${dss}.summary.default_transitions.mapping.tsv) | \
+	  awk '$$5=="y" {ny+=1; if (ny<=10) print; next} $$5=="n" {nn+=1; if (nn<=10) print; next} 1'; \
+	} >$@ 2>>.$(patsubst exports/%,%,$@).log
 
 exports/table_train_stop.tex: \
 	$(foreach dss,$(call keymap_val,export|table|train_stop|dss),\
