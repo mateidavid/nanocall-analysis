@@ -319,9 +319,9 @@ if __name__ == "__main__" and "__file__" in globals():
     l = [i for i in range(len(datasets))]
     if len(l) > 1 and len(l) % 2 > 0:
         l += [-1]
-    logger.info('l: ' + str(l))
+    logger.debug('l: ' + str(l))
     cols = [1, 2][len(l) > 1]
-    logger.info('cols: ' + str(cols))
+    logger.debug('cols: ' + str(cols))
     la = np.array(l).reshape(len(l) / cols, cols)
     make_figure_hairpin(fig_name, datasets,
                         [[(la[i][j],
