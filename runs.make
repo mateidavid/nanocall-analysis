@@ -83,9 +83,8 @@ define run_nanocall
 # 2 = input fofn
 # 3 = nanocall params
 # 4 = num threads
-# 5 = RAM request
 ${1}.fa.gz: ${2} | python3.version nanocall.version
-	SGE_RREQ="-N $$@ -pe smp ${4} -l h_tvmem=${5} ${NANOCALL_SGE_OPTS}" :; \
+	SGE_RREQ="-N $$@ -pe smp ${4} ${NANOCALL_SGE_OPTS}" :; \
 	{ \
 	  if [ "${CACHE_FILES}" = "1" ]; then \
 	    dir=$$$$(mktemp -d); \
@@ -110,7 +109,7 @@ $(foreach dss,${DATASUBSETS},\
 $(foreach ds,$(call get_dss_ds,${dss}),\
 $(foreach ss,$(call get_dss_ss,${dss}),\
 $(foreach nanocall_opts,$(call get_ds_nanocall_opt_list,${ds}),\
-$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_nanocall_opt_cmd,${nanocall_opts}),$(call get_nanocall_opt_threads,${nanocall_opts}),20G))))))
+$(eval $(call run_nanocall,${dss}.nanocall~${nanocall_opts},${dss}.fofn,$(call get_nanocall_opt_cmd,${nanocall_opts}),$(call get_nanocall_opt_threads,${nanocall_opts})))))))
 
 define make_m_vs_n_tables
 ${1}.metrichor+nanocall~${2}.${3}.bam_summary.tsv: \

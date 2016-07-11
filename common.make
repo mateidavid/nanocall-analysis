@@ -22,8 +22,8 @@ HUMAN_REFERENCE = ${DATA_DIR}/human.fa
 ECOLI_REFERENCE = ${DATA_DIR}/ecoli.fa
 
 GZIP := $(shell if which pigz >/dev/null 2>&1; then echo pigz; else echo gzip; fi)
-THREADS = 6
-NANOCALL_SGE_OPTS = -q !default&!upgradetest
+THREADS = 10
+NANOCALL_SGE_OPTS = -q transient -l h_tvmem=12G
 #NANOCALL_SGE_OPTS = -q marathon -l h_rt=48:0:0 -l s_rt=48:0:0
 
 # when set to 1, nanocall inputs are copied to temp dir before each run,
