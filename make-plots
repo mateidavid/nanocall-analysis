@@ -246,9 +246,6 @@ def make_figure_hairpin(fig_id, datasets, plot_array, **kwargs):
     for i in range(n):
         for j in range(m):
             ax = ax_a[i][j]
-            if i == n - 1:
-                cax = ax_a[n][j]
-                fig.colorbar(artist, cax=cax, orientation='horizontal')
             ds_idx = plot_array[i][j][0]
             if ds_idx < 0:
                 ax.axis('off')
@@ -259,6 +256,9 @@ def make_figure_hairpin(fig_id, datasets, plot_array, **kwargs):
             ax.set_aspect('equal', adjustable='box')
             ax.set_xlabel(p[1].upper() + ' ' + measure_props[p[0]]['name'], fontsize=font_size)
             ax.set_ylabel(ds['name'] + '\n\n' + p[3].upper() + ' ' + measure_props[p[2]]['name'], fontsize=font_size)
+            if i == n - 1:
+                cax = ax_a[n][j]
+                fig.colorbar(artist, cax=cax, orientation='horizontal')
     return fig
 
 def load_full_table(fn):
