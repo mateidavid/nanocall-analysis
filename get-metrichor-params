@@ -35,14 +35,20 @@ def process_file(fn):
     for st in range(2):
         if f5.have_model_path(st):
             mp = f5.get_model_path(st)
+            if '/r7.3' in mp:
+                pore = 'r73'
+            elif '/r9' in mp:
+                pore = 'r9'
+            else:
+                pore='und'
             mp = mp.split('/')[-1]
             if mp.startswith('template'):
-                mp = 't.006.ont.model'
+                mp = pore + '.t.006.ont.model'
             elif mp.startswith('complement'):
                 if 'pop1' in mp:
-                    mp = 'c.p1.006.ont.model'
+                    mp = pore + '.c.p1.006.ont.model'
                 elif 'pop2' in mp:
-                    mp = 'c.p2.006.ont.model'
+                    mp = pore + '.c.p2.006.ont.model'
             l += [mp]
         else:
             l += ['.']
