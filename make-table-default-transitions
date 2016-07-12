@@ -10,7 +10,7 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 output_keys = [
-    ('nanocall_tag', 'PStay & PSkip'),
+    ('nanocall_tag', '\\pstay/ & \\pskip/'),
     ('m_corr_frac', 'MCorr'),
     ('n_corr_frac', 'NCorr'),
     ('m_idn_frac', 'MIdn'),
