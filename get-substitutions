@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+import os
+import sys
+import pysam
+from collections import Counter
+
+# http://pysam.readthedocs.org/en/latest/api.html#pysam.AlignedRead.cigar
+MATCH  = 0  # M
+INS    = 1  # I
+DEL    = 2  # D
+SKIP   = 3  # N
+SOFT   = 4  # S
+HARD   = 5  # H
+PAD    = 6  # P
+EQUAL  = 7  # =
+DIFF   = 8  # X
+
+def tokenize_md(md):
+    l = list()
+    i = 0
+    while i < len(md):
+        j = i + 1
+        if md[i].isdigit():
+            while j < len(md) and md[j].isdigit():
+                j += 1
+            r = int(md[i:j])
+            if r > 0:
+                l.append(r)
+        elif md[i].isalpha():
+            while j < len(md) and md[j].isalpha():
+                j += 1
+            l.append(md[i:j])
+        elif md[i] == '^':
+            l.append('^')
+        else:
+            assert False
+        i = j
+    #logger.debug('tokens: ' + str(l))
+    return l
+
+def get_edits(cg, md, ln):
+    # drop trimming ops
+    if cg[0][0] == HARD: cg = cg[1:]
+    if cg[-1][0] == HARD: cg = cg[:-1]
+    qr_start = 0
+    qr_end = ln
+    if cg[0][0] == SOFT:
+        qr_start = cg[0][1]
+        cg = cg[1:]
+    if cg[-1][0] == SOFT:
+        cg = cg[:-1]
+    # parse md operations
+    md_list = tokenize_md(md)
+    #
+    res = list()
+    
+    for i in range(len(cg)):
+        if cg[i][0] == MATCH:
+            logger.error('found MATCH operation: run bam file through disambiguate first')
+        elif cg[i][0] in [HARD, SOFT, PAD, SKIP]:
+            logger.warn('unsupported operation: ' + cg[i][0])
+            return None
+
+def op_is_match(op):
+    if len(op) == 5:
+        return (op[1] - op[0] == abs(op[3] - op[2])
+                and len(op[4]) == op[1] - op[0]
+                and op[4] == op[4].upper())
+    else:
+        return (op[0] != None
+                and op[1] != None
+                and op[2] == op[2].upper())
+
+def op_is_mismatch(op):
+    if len(op) == 5:
+        return (op[1] - op[0] == abs(op[3] - op[2])
+                and len(op[4]) == op[1] - op[0]
+                and op[4] == op[4].lower())
+    else:
+        return (op[0] != None
+                and op[1] != None
+                and op[2] == op[2].lower())
+
+def op_is_ins(op):
+    if len(op) == 5:
+        return (op[1] - op[0] > 0
+                and op[3] == op[2]
+                and len(op[4]) == op[1] - op[0])
+    else:
+        return (op[0] != None
+                and op[1] == None)
+
+def op_is_del(op):
+    if len(op) == 5:
+        return (op[1] == op[0]
+                and abs(op[3] - op[2]) > 0
+                and len(op[4]) == abs(op[3] - op[2]))
+    else:
+        return (op[0] == None
+                and op[1] != None)
+
+def op_type(op):
+    if op_is_match(op): return 0
+    elif op_is_mismatch(op): return 1
+    elif op_is_ins(op): return 2
+    elif op_is_del(op): return 3
+    else: sys.exit('Invalid op: ' + str(op))
+
+def init_range_op(op):
+    if op_type(op) in [0, 1]:
+        return [op[0], op[0] + 1, op[1], op[1] + 1, op[2]]
+    elif op_type(op) == 2:
+        return [op[0], op[0] + 1, op[1], op[1], op[2]]
+    elif op_type(op) == 3:
+        return [op[0], op[0], op[1], op[1] + 1, op[2]]
+
+def drop_clip_ops(ap):
+    while (ap[0][0] == None) or (ap[0][1] == None): ap = ap[1:]
+    while (ap[-1][0] == None) or (ap[-1][1] == None): ap = ap[:-1]
+    return ap
+
+def get_aligned_regions(aln):
+    qr = aln.query_sequence
+    ap = aln.get_aligned_pairs(with_seq=True)
+    # trim clip operations
+    ap = drop_clip_ops(ap)
+    if not ap:
+        return
+    res = list()
+    for i in range(len(ap)):
+        op = [ap[i][0], ap[i][1], None, None]
+        if op[0] != None:
+            op[2] = qr[op[0]]
+        if op[1] != None:
+            op[3] = ap[i][2].upper()
+        if (i > 0
+            and (op[0] == None) == (res[-1][0] == None)
+            and (op[1] == None) == (res[-1][1] == None)
+            and (op[0] == None
+                 or op[1] == None
+                 or (op[2][0] == op[3][0]) == (res[-1][2][0] == res[-1][3][0]))):
+            if op[0] != None:
+                res[-1][2] = res[-1][2] + op[2]
+            if op[1] != None:
+                res[-1][3] = res[-1][3] + op[3]
+        else:
+            res.append(op)
+    return res
+
+def revcomp_char(c):
+    if c == 'A': return 'T'
+    elif c == 'C': return 'G'
+    elif c == 'G': return 'C'
+    elif c == 'T': return 'A'
+    else: sys.exit('Invalid character: ' + c)
+
+def revcomp(s):
+    return ''.join([revcomp_char(c) for c in s])
+
+def process_regions(ar, st, flank, max_size):
+    last = -1
+    qr_l = list()
+    rf_l = list()
+    qr_len = 0
+    rf_len = 0
+    for i in range(len(ar)):
+        op = ar[i]
+        if op[0] != None and op[1] != None and op[2][0] == op[3][0] and len(op[2]) >= flank:
+            # new match flank, print active one if any
+            if last >= 0:
+                flank_left = ar[last][2][-flank:]
+                flank_right = op[2][:flank]
+                qr = ''.join(qr_l)
+                rf = ''.join(rf_l)
+                if st:
+                    flank_left = revcomp(flank_left)
+                    flank_right = revcomp(flank_right)
+                    qr = revcomp(qr)
+                    rf = revcomp(rf)
+                print('\t'.join([flank_left, rf, qr, flank_right]))
+            last = i
+            qr_l = list()
+            rf_l = list()
+            qr_len = 0
+            rf_len = 0
+        else:
+            if op[2] != None:
+                qr_l += op[2]
+                qr_len += len(op[2])
+            if op[3] != None:
+                rf_l += op[3]
+                rf_len += len(op[3])
+            if rf_len > max_size or qr_len > max_size:
+                last = -1
+                qr_l = list()
+                rf_l = list()
+                qr_len = 0
+                rf_len = 0
+
+def process_file(in_bam, out_bam):
+    for aln in in_bam:
+        if aln.is_unmapped or aln.is_supplementary or aln.is_secondary or not aln.has_tag('MD'):
+            continue
+        ar = get_aligned_regions(aln)
+        if not ar:
+            continue
+        process_regions(ar, aln.is_reverse, args.flank, args.size)
+
+if __name__ == "__main__":
+    description = """
+Print substitutions encountered in BAM alignments. 
+    """
+    parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--log-level', help='log level', action='store', default='info')
+    #parser.add_argument('-o', '--output', default='-', help='Output SAM file.')
+    parser.add_argument('-f', '--flank', default=10, type=int, help='Minimum match size around subtitution.')
+    parser.add_argument('-s', '--size', default=10, type=int, help='Maximum subtitution size, in either reference or read.')
+    parser.add_argument('input', nargs='?', default='-', help='Input SAM/BAM file.')
+    args = parser.parse_args()
+
+    numeric_log_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_log_level, int):
+        raise ValueError('Invalid log level: "%s"' % args.log_level)
+    logging.basicConfig(level=numeric_log_level,
+                        format='%(asctime)s %(name)s.%(levelname)s %(message)s',
+                        datefmt='%Y/%m/%d %H:%M:%S')
+    logger = logging.getLogger(os.path.basename(__file__))
+    logger.debug('args=' + str(args))
+
+    in_bam = pysam.Samfile(args.input)
+
+    process_file(in_bam, args)
+
+    in_bam.close()
