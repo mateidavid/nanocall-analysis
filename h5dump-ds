@@ -6,7 +6,20 @@ import sys
 import h5py
 import numpy as np
 
-if __name__ == "__main__" and "__file__" in globals():
+import signal
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
+def print_attrs(a):
+    d = dict(a.attrs)
+    for k in d.keys():
+        val = d[k]
+        if type(val) == bytes:
+            val_str = val.decode()
+        else:
+            val_str = str(val)
+        print('#' + k + '\t' + val_str)
+
+if __name__ == "__main__":
     description = """
     Extract dataset&attributes from HDF5 file.
     """
@@ -16,15 +29,45 @@ if __name__ == "__main__" and "__file__" in globals():
     args = parser.parse_args()
 
     f = h5py.File(args.file)
-    a = f[args.path]
-    if len(a.shape) > 0:
-        dt = np.dtype([t if 'S' not in t[1] else (t[0], t[1].replace('S', 'U'))
-                       for t in a.dtype.descr])
-        d = dict(a.attrs)
-        for k in d.keys():
-            print('#' + k + '\t' + str(d[k]))
-        print('\t'.join(dt.names))
-        for e in a[()].astype(dt):
-            print('\t'.join((str(v) for v in e)))
+    if args.path in f:
+        # group or dataset
+        a = f[args.path]
+        if type(a) == h5py.Dataset:
+            if len(a.shape) > 0:
+                dt = np.dtype([t if 'S' not in t[1] else (t[0], t[1].replace('S', 'U'))
+                               for t in a.dtype.descr])
+                print_attrs(a)
+                print('\t'.join(dt.names))
+                for e in a[()].astype(dt):
+                    print('\t'.join((str(v) for v in e)))
+            else:
+                print(str(a[()].decode()), end='')
+        elif type(a) == h5py.Group:
+            print_attrs(a)
+            for k in a.keys():
+                p = args.path + '/' + str(k)
+                if type(f[p]) == h5py.Dataset:
+                    print("dataset " + str(k))
+                elif type(f[p]) == h5py.Group:
+                    print("group " + str(k))
+                else:
+                    print("? " + str(k))
+        else:
+            print("unknown object type: " + args.path, file=sys.stderr)
+            sys.exit(1)
     else:
-        print(str(a[()].decode()), end='')
+        g = "/".join(args.path.split("/")[:-1])
+        a = args.path.split("/")[-1]
+        if g not in f:
+            print("unknown object: " + args.path, file=sys.stderr)
+            sys.exit(1)
+        d = dict(f[g].attrs)
+        if a not in d:
+            print("attribute not found: " + args.path, file=sys.stderr)
+            sys.exit(1)
+        val = d[a]
+        if type(val) == bytes:
+            val_str = val.decode()
+        else:
+            val_str = str(val)
+        print(val_str)

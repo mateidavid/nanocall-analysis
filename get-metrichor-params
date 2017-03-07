@@ -10,7 +10,7 @@ import fast5_reader
 
 model_keys = ['scale', 'shift', 'drift', 'var', 'scale_sd', 'var_sd', 'stay_prob', 'skip_prob']
 
-def process_file(fn):
+def process_file(fn, ed_group=None):
     try:
         f5 = fast5_reader.File(fn)
     except OSError:
@@ -66,6 +66,7 @@ if __name__ == "__main__":
     Extract Metrichor model parameters for file(s).
     """
     parser = argparse.ArgumentParser(description=description, epilog='')
+    parser.add_argument('--ed-group', help='EventDetection group')
     parser.add_argument('--fofn', help='File of Fast5 files')
     parser.add_argument('input', nargs='?', help='Fast5 file')
     args = parser.parse_args()
@@ -77,9 +78,12 @@ if __name__ == "__main__":
     print('\t'.join(l))
 
     if args.input:
-        process_file(args.input)
-    if args.fofn:
-        fofn_f = open(args.fofn)
+        process_file(args.input, ed_group=args.ed_group)
+    else:
+        if args.fofn:
+            fofn_f = open(args.fofn)
+        else:
+            fofn_f = sys.stdin
         for line in fofn_f:
-            process_file(line.strip())
+            process_file(line.strip(), ed_group=args.ed_group)
         fofn_f.close()
